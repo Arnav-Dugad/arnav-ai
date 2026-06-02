@@ -43,8 +43,7 @@
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 html{height:100%;-webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent;}
-body{height:100%;background:var(--bg);color:var(--text);font-family:var(--sans);font-size:15px;line-height:1.65;overflow:hidden;-webkit-font-smoothing:antialiased;visibility:hidden;}
-body.ready{visibility:visible;}
+body{height:100%;background:var(--bg);color:var(--text);font-family:var(--sans);font-size:15px;line-height:1.65;overflow:hidden;-webkit-font-smoothing:antialiased;}
 
 /* scrollbars */
 
@@ -832,12 +831,17 @@ window.API_URL=MODEL_API_URL;
 window.MODEL=MODEL_NAME;
 document.getElementById('model-name').textContent=MODEL_NAME;
 
-onAuthStateChanged(auth, u => {
-  // Hide splash, show body — no flash
+// Bulletproof fallback — if Firebase takes >3s, show page anyway
+const fallbackTimer = setTimeout(() => {
   const sp = document.getElementById('splash');
-  sp.classList.add('fade');
-  setTimeout(() => { sp.style.display='none'; }, 400);
-  document.body.classList.add('ready');
+  if(sp) { sp.classList.add('fade'); setTimeout(()=>sp.style.display='none', 400); }
+  onLogout();
+}, 3000);
+
+onAuthStateChanged(auth, u => {
+  clearTimeout(fallbackTimer);
+  const sp = document.getElementById('splash');
+  if(sp) { sp.classList.add('fade'); setTimeout(()=>sp.style.display='none', 400); }
   if(u){ onLogin(u); } else { onLogout(); }
 });
 </script>
