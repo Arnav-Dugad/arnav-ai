@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Arnav AI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg: #0c0c0f;
+    --bg2: #111116;
+    --bg3: #18181f;
+    --surface: #1e1e28;
+    --surface2: #252530;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.12);
+    --text: #e8e8f0;
+    --text2: #9090a8;
+    --text3: #5a5a72;
+    --accent: #7c6af7;
+    --accent2: #a598ff;
+    --accent-glow: rgba(124,106,247,0.15);
+    --danger: #f77676;
+    --success: #5dd9a0;
+    --mono: 'DM Mono', monospace;
+    --sans: 'Instrument Sans', sans-serif;
+    --serif: 'DM Serif Display', serif;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.6;
+  }
+
+  /* ─── PAGES ─── */
+  .page { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; transition: opacity 0.4s ease, transform 0.4s ease; }
+  .page.hidden { opacity: 0; pointer-events: none; transform: translateY(12px); }
+
+  /* ─── AUTH PAGE ─── */
+  #auth-page {
+    background: var(--bg);
+    flex-direction: column;
+  }
+  .auth-bg {
+    position: absolute; inset: 0; overflow: hidden; pointer-events: none;
+  }
+  .auth-bg::before {
+    content: '';
+    position: absolute;
+    width: 600px; height: 600px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(124,106,247,0.12) 0%, transparent 70%);
+    top: -200px; left: 50%; transform: translateX(-50%);
+    animation: float 8s ease-in-out infinite;
+  }
+  .auth-bg::after {
+    content: '';
+    position: absolute;
+    width: 300px; height: 300px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(93,217,160,0.07) 0%, transparent 70%);
+    bottom: -100px; right: 10%;
+    animation: float 10s ease-in-out infinite reverse;
+  }
+  @keyframes float { 0%,100%{transform:translateY(0) translateX(-50%)} 50%{transform:translateY(-20px) translateX(-50%)} }
+
+  .auth-card {
+    position: relative; z-index: 1;
+    background: var(--bg2);
+    border: 1px solid var(--border2);
+    border-radius: 20px;
+    padding: 48px 44px;
+    width: 100%;
+    max-width: 420px;
+    box-shadow: 0 0 80px rgba(124,106,247,0.08), 0 32px 64px rgba(0,0,0,0.5);
+  }
+  .auth-logo {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 32px;
+  }
+  .auth-logo-icon {
+    width: 36px; height: 36px;
+    background: linear-gradient(135deg, var(--accent), #a598ff);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .auth-logo-icon svg { width: 18px; height: 18px; }
+  .auth-logo-name {
+    font-family: var(--serif);
+    font-size: 22px;
+    letter-spacing: -0.3px;
+    color: var(--text);
+  }
+  .auth-title {
+    font-family: var(--serif);
+    font-size: 28px;
+    color: var(--text);
+    margin-bottom: 6px;
+    letter-spacing: -0.5px;
+  }
+  .auth-subtitle { color: var(--text2); font-size: 14px; margin-bottom: 32px; }
+
+  .auth-tabs {
+    display: flex; border-bottom: 1px solid var(--border);
+    margin-bottom: 28px;
+  }
+  .auth-tab {
+    flex: 1; background: none; border: none;
+    color: var(--text3); font-family: var(--sans); font-size: 13px; font-weight: 500;
+    padding: 0 0 12px; cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: all 0.2s;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+  }
+  .auth-tab.active { color: var(--accent2); border-bottom-color: var(--accent2); }
+
+  .auth-form { display: flex; flex-direction: column; gap: 14px; }
+  .auth-form.hidden { display: none; }
+  .input-group { display: flex; flex-direction: column; gap: 5px; }
+  .input-label { font-size: 12px; color: var(--text2); font-weight: 500; letter-spacing: 0.5px; text-transform: uppercase; }
+  .auth-input {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-family: var(--sans); font-size: 14px;
+    padding: 11px 14px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .auth-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+  .auth-input::placeholder { color: var(--text3); }
+
+  .auth-btn {
+    margin-top: 6px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 12px;
+    font-family: var(--sans); font-weight: 600; font-size: 14px;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.1s;
+    letter-spacing: 0.2px;
+  }
+  .auth-btn:hover { opacity: 0.88; }
+  .auth-btn:active { transform: scale(0.98); }
+  .auth-btn:disabled { opacity: 0.4; cursor: default; }
+
+  .auth-divider { display: flex; align-items: center; gap: 12px; margin: 4px 0; }
+  .auth-divider::before, .auth-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+  .auth-divider span { color: var(--text3); font-size: 12px; }
+
+  .google-btn {
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    border-radius: 10px;
+    color: var(--text);
+    font-family: var(--sans); font-size: 14px; font-weight: 500;
+    padding: 11px 14px;
+    cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px;
+    transition: background 0.2s;
+  }
+  .google-btn:hover { background: var(--surface2); }
+  .google-btn svg { width: 16px; height: 16px; }
+
+  .auth-error {
+    background: rgba(247,118,118,0.08);
+    border: 1px solid rgba(247,118,118,0.2);
+    border-radius: 8px;
+    color: var(--danger);
+    font-size: 13px;
+    padding: 10px 12px;
+    display: none;
+  }
+  .auth-error.visible { display: block; }
+
+  /* ─── CHAT PAGE ─── */
+  #chat-page {
+    flex-direction: column;
+    align-items: stretch;
+    background: var(--bg);
+    padding: 0;
+    overflow: hidden;
+  }
+
+  /* Sidebar */
+  .sidebar {
+    position: fixed; left: 0; top: 0; bottom: 0;
+    width: 240px;
+    background: var(--bg2);
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    z-index: 10;
+    transform: translateX(0);
+    transition: transform 0.3s ease;
+  }
+  .sidebar.collapsed { transform: translateX(-240px); }
+  .sidebar-header {
+    padding: 18px 16px 14px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .sidebar-logo-icon {
+    width: 28px; height: 28px;
+    background: linear-gradient(135deg, var(--accent), #a598ff);
+    border-radius: 7px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .sidebar-logo-icon svg { width: 14px; height: 14px; }
+  .sidebar-logo-name { font-family: var(--serif); font-size: 17px; color: var(--text); }
+  .new-chat-btn {
+    margin: 12px 12px 8px;
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: 9px;
+    color: var(--text2);
+    font-family: var(--sans); font-size: 13px;
+    padding: 9px 12px;
+    cursor: pointer; display: flex; align-items: center; gap: 7px;
+    transition: all 0.2s;
+  }
+  .new-chat-btn:hover { background: var(--surface2); color: var(--text); }
+  .new-chat-btn svg { width: 14px; height: 14px; flex-shrink: 0; }
+  .chat-history { flex: 1; overflow-y: auto; padding: 4px 8px; }
+  .chat-history::-webkit-scrollbar { width: 4px; }
+  .chat-history::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+  .history-label { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.8px; padding: 8px 8px 4px; }
+  .history-item {
+    padding: 8px 10px; border-radius: 8px; cursor: pointer;
+    font-size: 13px; color: var(--text2);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    transition: all 0.15s;
+  }
+  .history-item:hover { background: var(--surface); color: var(--text); }
+  .history-item.active { background: var(--accent-glow); color: var(--accent2); }
+  .sidebar-footer {
+    padding: 12px;
+    border-top: 1px solid var(--border);
+  }
+  .user-info {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 10px; border-radius: 9px;
+    cursor: pointer; transition: background 0.2s;
+    position: relative;
+  }
+  .user-info:hover { background: var(--surface); }
+  .user-avatar {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), #5dd9a0);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 600; color: #fff;
+    flex-shrink: 0;
+  }
+  .user-details { flex: 1; min-width: 0; }
+  .user-name { font-size: 13px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .user-email { font-size: 11px; color: var(--text3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .user-menu {
+    position: absolute; bottom: 100%; left: 0; right: 0;
+    background: var(--surface2); border: 1px solid var(--border2);
+    border-radius: 10px; padding: 6px;
+    display: none; z-index: 50;
+  }
+  .user-menu.open { display: block; }
+  .user-menu-item {
+    padding: 8px 12px; border-radius: 6px;
+    font-size: 13px; color: var(--text2); cursor: pointer;
+    display: flex; align-items: center; gap: 8px;
+    transition: all 0.15s;
+  }
+  .user-menu-item:hover { background: var(--surface); color: var(--text); }
+  .user-menu-item.danger:hover { background: rgba(247,118,118,0.08); color: var(--danger); }
+  .user-menu-item svg { width: 14px; height: 14px; flex-shrink: 0; }
+
+  /* Main chat area */
+  .chat-main {
+    margin-left: 240px;
+    height: 100vh;
+    display: flex; flex-direction: column;
+    transition: margin-left 0.3s ease;
+  }
+  .chat-main.full { margin-left: 0; }
+
+  .chat-topbar {
+    height: 54px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 12px;
+    padding: 0 18px;
+    flex-shrink: 0;
+    background: var(--bg);
+  }
+  .toggle-sidebar-btn {
+    background: none; border: none; color: var(--text2);
+    cursor: pointer; padding: 5px; border-radius: 7px;
+    display: flex; transition: all 0.15s;
+  }
+  .toggle-sidebar-btn:hover { background: var(--surface); color: var(--text); }
+  .toggle-sidebar-btn svg { width: 18px; height: 18px; }
+  .topbar-title { font-size: 14px; font-weight: 500; color: var(--text2); flex: 1; }
+  .model-badge {
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: 20px;
+    padding: 4px 10px;
+    font-size: 11px; font-family: var(--mono);
+    color: var(--accent2);
+    letter-spacing: 0.2px;
+  }
+
+  /* Messages */
+  .messages-area {
+    flex: 1; overflow-y: auto;
+    padding: 24px 0;
+    scroll-behavior: smooth;
+  }
+  .messages-area::-webkit-scrollbar { width: 5px; }
+  .messages-area::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+  .messages-inner { max-width: 720px; margin: 0 auto; padding: 0 24px; }
+
+  .empty-state {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    height: 100%; text-align: center; padding: 48px 24px;
+  }
+  .empty-icon {
+    width: 64px; height: 64px;
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: 18px;
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 20px;
+  }
+  .empty-icon svg { width: 28px; height: 28px; color: var(--accent2); }
+  .empty-title { font-family: var(--serif); font-size: 26px; color: var(--text); margin-bottom: 8px; letter-spacing: -0.3px; }
+  .empty-sub { color: var(--text2); font-size: 14px; max-width: 340px; line-height: 1.6; margin-bottom: 32px; }
+  .suggestions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+  .suggestion-chip {
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: 20px;
+    padding: 8px 14px;
+    font-size: 13px; color: var(--text2);
+    cursor: pointer; transition: all 0.2s;
+  }
+  .suggestion-chip:hover { background: var(--surface2); color: var(--text); border-color: var(--accent); }
+
+  .message { margin-bottom: 24px; animation: msgIn 0.25s ease; }
+  @keyframes msgIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+  .message-header {
+    display: flex; align-items: center; gap: 9px;
+    margin-bottom: 7px;
+  }
+  .msg-avatar {
+    width: 26px; height: 26px; border-radius: 7px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 600; flex-shrink: 0;
+  }
+  .msg-avatar.ai { background: linear-gradient(135deg, var(--accent), #a598ff); color: #fff; }
+  .msg-avatar.user { background: var(--surface2); border: 1px solid var(--border2); color: var(--text2); }
+  .msg-name { font-size: 12px; font-weight: 600; color: var(--text2); letter-spacing: 0.3px; text-transform: uppercase; }
+  .msg-time { font-size: 11px; color: var(--text3); font-family: var(--mono); }
+
+  .message-body {
+    padding-left: 35px;
+    font-size: 15px; line-height: 1.7; color: var(--text);
+  }
+  .message-body.user-body { color: var(--text2); }
+  .message-body code {
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: 5px;
+    padding: 1px 6px;
+    font-family: var(--mono); font-size: 13px;
+    color: var(--accent2);
+  }
+  .message-body pre {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin: 10px 0;
+    overflow-x: auto;
+    font-family: var(--mono); font-size: 13px; line-height: 1.6;
+    color: var(--text);
+  }
+  .message-body pre code { background: none; border: none; padding: 0; color: inherit; }
+
+  .typing-indicator { display: flex; gap: 4px; padding-left: 35px; }
+  .typing-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--text3);
+    animation: blink 1.2s infinite;
+  }
+  .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+  .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes blink { 0%,100%{opacity:0.3} 50%{opacity:1} }
+
+  /* Input */
+  .input-area {
+    padding: 16px 20px 20px;
+    flex-shrink: 0;
+  }
+  .input-box {
+    max-width: 720px; margin: 0 auto;
+    background: var(--bg2);
+    border: 1px solid var(--border2);
+    border-radius: 14px;
+    padding: 12px 14px;
+    display: flex; align-items: flex-end; gap: 10px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .input-box:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+  #chat-input {
+    flex: 1; background: none; border: none; outline: none;
+    color: var(--text); font-family: var(--sans); font-size: 14px; line-height: 1.5;
+    resize: none; min-height: 22px; max-height: 160px;
+    overflow-y: auto;
+  }
+  #chat-input::placeholder { color: var(--text3); }
+  #chat-input::-webkit-scrollbar { width: 4px; }
+  #chat-input::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+  .input-actions { display: flex; gap: 6px; }
+  .input-btn {
+    width: 32px; height: 32px; border-radius: 8px;
+    border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s;
+  }
+  .input-btn.send {
+    background: var(--accent); color: #fff;
+  }
+  .input-btn.send:hover { opacity: 0.85; }
+  .input-btn.send:disabled { background: var(--surface2); color: var(--text3); cursor: default; }
+  .input-btn.send svg { width: 15px; height: 15px; }
+  .input-footer {
+    max-width: 720px; margin: 8px auto 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; color: var(--text3); gap: 4px;
+  }
+
+  /* ─── TOASTS ─── */
+  .toast-container { position: fixed; bottom: 24px; right: 24px; z-index: 999; display: flex; flex-direction: column; gap: 8px; }
+  .toast {
+    background: var(--surface2); border: 1px solid var(--border2);
+    border-radius: 10px; padding: 12px 16px;
+    font-size: 13px; color: var(--text);
+    animation: toastIn 0.3s ease;
+    max-width: 300px;
+  }
+  .toast.error { border-color: rgba(247,118,118,0.3); color: var(--danger); }
+  .toast.success { border-color: rgba(93,217,160,0.3); color: var(--success); }
+  @keyframes toastIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* ─── RESPONSIVE ─── */
+  @media(max-width: 768px) {
+    .sidebar { width: 220px; }
+    .chat-main { margin-left: 0; }
+    .sidebar:not(.collapsed) { box-shadow: 0 0 40px rgba(0,0,0,0.5); }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════ AUTH PAGE ═══════════════════════ -->
+<div id="auth-page" class="page">
+  <div class="auth-bg"></div>
+  <div class="auth-card">
+    <div class="auth-logo">
+      <div class="auth-logo-icon">
+        <svg viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M9 1L11 6H16.5L12 9.5L13.5 15L9 11.5L4.5 15L6 9.5L1.5 6H7L9 1Z" fill="white" stroke="white" stroke-width="0.5" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <span class="auth-logo-name">Arnav AI</span>
+    </div>
+    <div class="auth-title" id="auth-heading">Welcome back</div>
+    <div class="auth-subtitle" id="auth-subheading">Sign in to continue your conversation.</div>
+
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="tab-signin" onclick="switchTab('signin')">Sign In</button>
+      <button class="auth-tab" id="tab-signup" onclick="switchTab('signup')">Create Account</button>
+    </div>
+
+    <div class="auth-error" id="auth-error"></div>
+
+    <!-- Sign In Form -->
+    <div class="auth-form" id="form-signin">
+      <div class="input-group">
+        <label class="input-label">Email</label>
+        <input class="auth-input" type="email" id="signin-email" placeholder="you@example.com" autocomplete="email"/>
+      </div>
+      <div class="input-group">
+        <label class="input-label">Password</label>
+        <input class="auth-input" type="password" id="signin-pass" placeholder="••••••••" autocomplete="current-password"/>
+      </div>
+      <button class="auth-btn" id="signin-btn" onclick="signIn()">Sign In</button>
+      <div class="auth-divider"><span>or</span></div>
+      <button class="google-btn" onclick="signInGoogle()">
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+        Continue with Google
+      </button>
+    </div>
+
+    <!-- Sign Up Form -->
+    <div class="auth-form hidden" id="form-signup">
+      <div class="input-group">
+        <label class="input-label">Display Name</label>
+        <input class="auth-input" type="text" id="signup-name" placeholder="Your name" autocomplete="name"/>
+      </div>
+      <div class="input-group">
+        <label class="input-label">Email</label>
+        <input class="auth-input" type="email" id="signup-email" placeholder="you@example.com" autocomplete="email"/>
+      </div>
+      <div class="input-group">
+        <label class="input-label">Password</label>
+        <input class="auth-input" type="password" id="signup-pass" placeholder="At least 8 characters" autocomplete="new-password"/>
+      </div>
+      <button class="auth-btn" id="signup-btn" onclick="signUp()">Create Account</button>
+      <div class="auth-divider"><span>or</span></div>
+      <button class="google-btn" onclick="signInGoogle()">
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+        Continue with Google
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════ CHAT PAGE ═══════════════════════ -->
+<div id="chat-page" class="page hidden">
+  <!-- Sidebar -->
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo-icon">
+        <svg viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M9 1L11 6H16.5L12 9.5L13.5 15L9 11.5L4.5 15L6 9.5L1.5 6H7L9 1Z" fill="white" stroke="white" stroke-width="0.5" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <span class="sidebar-logo-name">Arnav AI</span>
+    </div>
+    <button class="new-chat-btn" onclick="newChat()">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+      New conversation
+    </button>
+    <div class="chat-history" id="chat-history">
+      <div class="history-label">Today</div>
+    </div>
+    <div class="sidebar-footer">
+      <div class="user-info" onclick="toggleUserMenu()" id="user-info-btn">
+        <div class="user-avatar" id="user-avatar-sidebar">?</div>
+        <div class="user-details">
+          <div class="user-name" id="user-name-sidebar">Loading…</div>
+          <div class="user-email" id="user-email-sidebar"></div>
+        </div>
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14" style="color:var(--text3)"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/></svg>
+        <div class="user-menu" id="user-menu">
+          <div class="user-menu-item danger" onclick="signOut()">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+            Sign out
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main area -->
+  <div class="chat-main" id="chat-main">
+    <div class="chat-topbar">
+      <button class="toggle-sidebar-btn" onclick="toggleSidebar()">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
+      <span class="topbar-title" id="topbar-title">New conversation</span>
+      <span class="model-badge" id="model-badge">custom-model</span>
+    </div>
+    <div class="messages-area" id="messages-area">
+      <div class="messages-inner" id="messages-inner">
+        <div class="empty-state" id="empty-state">
+          <div class="empty-icon">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+          </div>
+          <div class="empty-title">How can I help you?</div>
+          <div class="empty-sub">Ask me anything. I'm your personal AI assistant, powered by your custom model.</div>
+          <div class="suggestions">
+            <div class="suggestion-chip" onclick="useSuggestion(this)">Explain quantum computing</div>
+            <div class="suggestion-chip" onclick="useSuggestion(this)">Write a Python script</div>
+            <div class="suggestion-chip" onclick="useSuggestion(this)">Summarize a topic</div>
+            <div class="suggestion-chip" onclick="useSuggestion(this)">Help me brainstorm</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="input-area">
+      <div class="input-box">
+        <textarea id="chat-input" placeholder="Message Arnav AI…" rows="1" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+        <div class="input-actions">
+          <button class="input-btn send" id="send-btn" onclick="sendMessage()" disabled>
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="input-footer">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="11" height="11"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        Responses are generated by your model. Review important information.
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+
+<!-- ═══════════════════════ FIREBASE ═══════════════════════ -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signOut as fbSignOut, onAuthStateChanged, updateProfile } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+// ════════════════════════════════════════════════════
+//  🔧 CONFIGURATION — REPLACE WITH YOUR FIREBASE CONFIG
+// ════════════════════════════════════════════════════
+const firebaseConfig = {
+  apiKey: "AIzaSyBA0_MCIYEWGuZyk_fYZWngtKVY7Pwnf8I",
+  authDomain: "arnavai-e9446.firebaseapp.com",
+  projectId: "arnavai-e9446",
+  storageBucket: "arnavai-e9446.firebasestorage.app",
+  messagingSenderId: "1045376806966",
+  appId: "1:1045376806966:web:50d74fca783a0a61f3a897",
+  measurementId: "G-98H8SQH0NN"
+};
+
+// ════════════════════════════════════════════════════
+//  🔧 YOUR HUGGING FACE MODEL API ENDPOINT
+//  Example: https://YOUR-USERNAME-YOUR-MODEL.hf.space/chat
+// ════════════════════════════════════════════════════
+const MODEL_API_URL = "https://arnavdug-arnav-ai.hf.space/chat";
+const MODEL_NAME    = "DialoGPT-medium";   // shown in the badge
+
+// ════════════════════════════════════════════════════
+const app  = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const googleProvider = new GoogleAuthProvider();
+
+// Expose auth functions to global scope (called by HTML onclick)
+window._auth    = auth;
+window._fbSignOut = fbSignOut;
+window._signInWithEmailAndPassword = signInWithEmailAndPassword;
+window._createUserWithEmailAndPassword = createUserWithEmailAndPassword;
+window._signInWithPopup = signInWithPopup;
+window._googleProvider = googleProvider;
+window._updateProfile = updateProfile;
+window.MODEL_API_URL = MODEL_API_URL;
+window.MODEL_NAME = MODEL_NAME;
+
+// Update model badge
+document.getElementById('model-badge').textContent = MODEL_NAME;
+
+// Auth state listener
+onAuthStateChanged(auth, (user) => {
+  if (user) {
+    showChatPage(user);
+  } else {
+    showAuthPage();
+  }
+});
+</script>
+
+<script>
+// ═══════════════════════ UTILS ═══════════════════════
+function toast(msg, type='') {
+  const c = document.getElementById('toast-container');
+  const t = document.createElement('div');
+  t.className = 'toast' + (type ? ' '+type : '');
+  t.textContent = msg;
+  c.appendChild(t);
+  setTimeout(() => t.remove(), 3500);
+}
+
+function showError(msg) {
+  const el = document.getElementById('auth-error');
+  el.textContent = msg;
+  el.classList.add('visible');
+}
+function clearError() { document.getElementById('auth-error').classList.remove('visible'); }
+
+function setLoading(btnId, loading) {
+  const btn = document.getElementById(btnId);
+  btn.disabled = loading;
+  btn.textContent = loading ? '…' : btn.dataset.label || btn.textContent;
+}
+
+// ═══════════════════════ PAGE SWITCH ═══════════════════════
+function showAuthPage() {
+  document.getElementById('auth-page').classList.remove('hidden');
+  document.getElementById('chat-page').classList.add('hidden');
+}
+
+function showChatPage(user) {
+  document.getElementById('auth-page').classList.add('hidden');
+  document.getElementById('chat-page').classList.remove('hidden');
+  const name = user.displayName || user.email.split('@')[0];
+  const initials = name.slice(0,2).toUpperCase();
+  document.getElementById('user-avatar-sidebar').textContent = initials;
+  document.getElementById('user-name-sidebar').textContent = name;
+  document.getElementById('user-email-sidebar').textContent = user.email;
+}
+
+// ═══════════════════════ AUTH ═══════════════════════
+function switchTab(tab) {
+  clearError();
+  document.getElementById('tab-signin').classList.toggle('active', tab==='signin');
+  document.getElementById('tab-signup').classList.toggle('active', tab==='signup');
+  document.getElementById('form-signin').classList.toggle('hidden', tab!=='signin');
+  document.getElementById('form-signup').classList.toggle('hidden', tab!=='signup');
+  document.getElementById('auth-heading').textContent  = tab==='signin' ? 'Welcome back' : 'Create account';
+  document.getElementById('auth-subheading').textContent = tab==='signin' ? 'Sign in to continue your conversation.' : 'Get started — it\'s free.';
+}
+
+async function signIn() {
+  clearError();
+  const email = document.getElementById('signin-email').value.trim();
+  const pass  = document.getElementById('signin-pass').value;
+  if(!email || !pass) { showError('Please fill in all fields.'); return; }
+  const btn = document.getElementById('signin-btn');
+  btn.disabled = true; btn.textContent = 'Signing in…';
+  try {
+    await window._signInWithEmailAndPassword(window._auth, email, pass);
+  } catch(e) {
+    showError(friendlyError(e.code));
+    btn.disabled = false; btn.textContent = 'Sign In';
+  }
+}
+
+async function signUp() {
+  clearError();
+  const name  = document.getElementById('signup-name').value.trim();
+  const email = document.getElementById('signup-email').value.trim();
+  const pass  = document.getElementById('signup-pass').value;
+  if(!name || !email || !pass) { showError('Please fill in all fields.'); return; }
+  if(pass.length < 8) { showError('Password must be at least 8 characters.'); return; }
+  const btn = document.getElementById('signup-btn');
+  btn.disabled = true; btn.textContent = 'Creating account…';
+  try {
+    const cred = await window._createUserWithEmailAndPassword(window._auth, email, pass);
+    await window._updateProfile(cred.user, { displayName: name });
+  } catch(e) {
+    showError(friendlyError(e.code));
+    btn.disabled = false; btn.textContent = 'Create Account';
+  }
+}
+
+async function signInGoogle() {
+  clearError();
+  try {
+    await window._signInWithPopup(window._auth, window._googleProvider);
+  } catch(e) {
+    if(e.code !== 'auth/popup-closed-by-user') showError(friendlyError(e.code));
+  }
+}
+
+async function signOut() {
+  try { await window._fbSignOut(window._auth); } catch(e) {}
+}
+
+function friendlyError(code) {
+  const map = {
+    'auth/invalid-email': 'Invalid email address.',
+    'auth/user-not-found': 'No account found with this email.',
+    'auth/wrong-password': 'Incorrect password.',
+    'auth/email-already-in-use': 'Email already in use. Try signing in.',
+    'auth/weak-password': 'Password too weak.',
+    'auth/network-request-failed': 'Network error. Check your connection.',
+    'auth/too-many-requests': 'Too many attempts. Try again later.',
+    'auth/invalid-credential': 'Invalid credentials. Check email and password.'
+  };
+  return map[code] || 'Something went wrong. Please try again.';
+}
+
+// ═══════════════════════ SIDEBAR ═══════════════════════
+let sidebarOpen = true;
+function toggleSidebar() {
+  sidebarOpen = !sidebarOpen;
+  document.getElementById('sidebar').classList.toggle('collapsed', !sidebarOpen);
+  document.getElementById('chat-main').classList.toggle('full', !sidebarOpen);
+}
+
+let userMenuOpen = false;
+function toggleUserMenu(e) {
+  userMenuOpen = !userMenuOpen;
+  document.getElementById('user-menu').classList.toggle('open', userMenuOpen);
+}
+document.addEventListener('click', (e) => {
+  if(!document.getElementById('user-info-btn').contains(e.target)) {
+    userMenuOpen = false;
+    document.getElementById('user-menu').classList.remove('open');
+  }
+});
+
+// ═══════════════════════ CHAT ═══════════════════════
+let messages = [];
+let isStreaming = false;
+let sessionTitle = '';
+
+function newChat() {
+  messages = [];
+  sessionTitle = '';
+  document.getElementById('topbar-title').textContent = 'New conversation';
+  const inner = document.getElementById('messages-inner');
+  inner.innerHTML = `
+    <div class="empty-state" id="empty-state">
+      <div class="empty-icon">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+      </div>
+      <div class="empty-title">How can I help you?</div>
+      <div class="empty-sub">Ask me anything. I'm your personal AI assistant, powered by your custom model.</div>
+      <div class="suggestions">
+        <div class="suggestion-chip" onclick="useSuggestion(this)">Explain quantum computing</div>
+        <div class="suggestion-chip" onclick="useSuggestion(this)">Write a Python script</div>
+        <div class="suggestion-chip" onclick="useSuggestion(this)">Summarize a topic</div>
+        <div class="suggestion-chip" onclick="useSuggestion(this)">Help me brainstorm</div>
+      </div>
+    </div>`;
+}
+
+function useSuggestion(el) {
+  document.getElementById('chat-input').value = el.textContent;
+  autoResize(document.getElementById('chat-input'));
+  document.getElementById('send-btn').disabled = false;
+  sendMessage();
+}
+
+function handleKey(e) {
+  if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+}
+
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 160) + 'px';
+  document.getElementById('send-btn').disabled = el.value.trim() === '';
+}
+
+function timeStr() {
+  return new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+}
+
+function appendMessage(role, text, animate=true) {
+  const empty = document.getElementById('empty-state');
+  if(empty) empty.remove();
+
+  const user = window._auth.currentUser;
+  const name = user ? (user.displayName || user.email.split('@')[0]) : 'You';
+  const initials = name.slice(0,2).toUpperCase();
+
+  const isAI = role === 'assistant';
+  const div = document.createElement('div');
+  div.className = 'message';
+  div.id = animate ? 'msg-' + Date.now() : undefined;
+  div.innerHTML = `
+    <div class="message-header">
+      <div class="msg-avatar ${isAI ? 'ai' : 'user'}">${isAI ? 'AI' : initials}</div>
+      <span class="msg-name">${isAI ? (window.MODEL_NAME || 'AI') : name}</span>
+      <span class="msg-time">${timeStr()}</span>
+    </div>
+    <div class="message-body ${isAI ? '' : 'user-body'}">${formatMessage(text)}</div>`;
+  document.getElementById('messages-inner').appendChild(div);
+  scrollBottom();
+  return div;
+}
+
+function formatMessage(text) {
+  // Basic markdown-like formatting
+  return text
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>')
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+    .replace(/\n/g, '<br>');
+}
+
+function scrollBottom() {
+  const area = document.getElementById('messages-area');
+  area.scrollTop = area.scrollHeight;
+}
+
+function showTyping() {
+  const empty = document.getElementById('empty-state');
+  if(empty) empty.remove();
+  const div = document.createElement('div');
+  div.className = 'message'; div.id = 'typing-msg';
+  div.innerHTML = `
+    <div class="message-header">
+      <div class="msg-avatar ai">AI</div>
+      <span class="msg-name">${window.MODEL_NAME || 'AI'}</span>
+    </div>
+    <div class="typing-indicator">
+      <div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>
+    </div>`;
+  document.getElementById('messages-inner').appendChild(div);
+  scrollBottom();
+}
+
+function removeTyping() {
+  const t = document.getElementById('typing-msg');
+  if(t) t.remove();
+}
+
+async function sendMessage() {
+  if(isStreaming) return;
+  const input = document.getElementById('chat-input');
+  const text = input.value.trim();
+  if(!text) return;
+
+  input.value = '';
+  input.style.height = 'auto';
+  document.getElementById('send-btn').disabled = true;
+
+  // Set title from first message
+  if(!sessionTitle) {
+    sessionTitle = text.length > 40 ? text.slice(0,40)+'…' : text;
+    document.getElementById('topbar-title').textContent = sessionTitle;
+    addToHistory(sessionTitle);
+  }
+
+  messages.push({ role:'user', content: text });
+  appendMessage('user', text);
+
+  isStreaming = true;
+  showTyping();
+
+  try {
+    const token = await window._auth.currentUser.getIdToken();
+    const response = await fetch(window.MODEL_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + token
+      },
+      body: JSON.stringify({ messages })
+    });
+
+    removeTyping();
+
+    if(!response.ok) {
+      throw new Error('API error: ' + response.status);
+    }
+
+    const data = await response.json();
+    // Adjust this based on your HuggingFace API response shape:
+    const reply = data.response || data.generated_text || data.choices?.[0]?.message?.content || data.text || 'No response.';
+    messages.push({ role:'assistant', content: reply });
+    appendMessage('assistant', reply);
+
+  } catch(err) {
+    removeTyping();
+    appendMessage('assistant', '⚠️ ' + (err.message || 'Could not reach the model. Check your API URL in the config.'));
+    toast('Error connecting to model', 'error');
+  }
+
+  isStreaming = false;
+}
+
+function addToHistory(title) {
+  const hist = document.getElementById('chat-history');
+  const item = document.createElement('div');
+  item.className = 'history-item active';
+  item.textContent = title;
+  // Deactivate others
+  hist.querySelectorAll('.history-item').forEach(i => i.classList.remove('active'));
+  hist.appendChild(item);
+  item.onclick = () => {
+    hist.querySelectorAll('.history-item').forEach(i => i.classList.remove('active'));
+    item.classList.add('active');
+  };
+}
+
+// Enable/disable send on input
+document.getElementById('chat-input').addEventListener('input', function() {
+  document.getElementById('send-btn').disabled = this.value.trim() === '';
+});
+</script>
+</body>
+</html>
