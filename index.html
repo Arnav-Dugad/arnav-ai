@@ -136,7 +136,7 @@
         </div>
         <svg class="u-chevron" id="u-chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24" width="13" height="13"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
         <div class="u-menu" id="u-menu">
-          <div class="u-mi" onclick="openProfile()">
+          <div class="u-mi" onclick="event.stopPropagation();openProfile()">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
             My Profile
           </div>
@@ -744,6 +744,29 @@
       </div>
 
     </div>
+  </div>
+</div>
+
+<!-- PAYMENT SUCCESS OVERLAY -->
+<div class="pso-overlay" id="pso-overlay" style="display:none" onclick="if(event.target.id==='pso-overlay')closePso()">
+  <div class="pso-backdrop"></div>
+  <div class="pso-confetti-wrap" id="pso-confetti-wrap"></div>
+  <div class="pso-card" id="pso-card">
+    <div class="pso-check-ring">
+      <svg class="pso-check-svg" viewBox="0 0 52 52" fill="none">
+        <circle class="pso-circle" cx="26" cy="26" r="23" stroke="currentColor" stroke-width="2.5"/>
+        <path class="pso-tick"  d="M14 26 l8 8 16-16" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <div class="pso-eyebrow">Payment confirmed 🎉</div>
+    <div class="pso-headline" id="pso-headline">You're on Plus now!</div>
+    <div class="pso-message" id="pso-message">The turbo switch just got flipped.</div>
+    <div class="pso-perks" id="pso-perks"></div>
+    <button class="pso-btn" onclick="closePso()">
+      Let's go
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="15" height="15"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 12h14M12 5l7 7-7 7"/></svg>
+    </button>
+    <div class="pso-sub" id="pso-sub">No really — we're genuinely glad you're here. ✨</div>
   </div>
 </div>
 
