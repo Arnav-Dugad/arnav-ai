@@ -1149,3 +1149,115 @@ kbd{background:var(--bg3);border:1px solid var(--border2);border-radius:4px;padd
   font-size:12px;color:var(--text3);
   padding:0 0 12px;line-height:1.6;
 }
+
+/* ══════════════════════════════════════
+   PAYMENT SUCCESS OVERLAY
+══════════════════════════════════════ */
+.pso-overlay{
+  position:fixed;inset:0;z-index:10000;
+  display:flex;align-items:center;justify-content:center;
+}
+.pso-backdrop{
+  position:absolute;inset:0;
+  background:rgba(0,0,0,.88);
+  backdrop-filter:blur(14px);
+  -webkit-backdrop-filter:blur(14px);
+}
+.pso-confetti-wrap{
+  position:absolute;inset:0;pointer-events:none;overflow:hidden;
+}
+.pso-confetti-piece{
+  position:absolute;top:-14px;
+  width:10px;height:10px;
+  border-radius:2px;
+  animation:confettiFall linear forwards;
+}
+@keyframes confettiFall{
+  0%  {transform:translateY(0) rotate(0deg);opacity:1;}
+  80% {opacity:1;}
+  100%{transform:translateY(110vh) rotate(720deg);opacity:0;}
+}
+
+/* Card */
+.pso-card{
+  position:relative;z-index:1;
+  background:var(--bg2);
+  border:1px solid var(--border2);
+  border-radius:28px;
+  padding:48px 40px 36px;
+  text-align:center;
+  max-width:420px;width:92%;
+  box-shadow:0 28px 90px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.04);
+  animation:psoCardIn .6s cubic-bezier(.175,.885,.32,1.275) forwards;
+}
+@keyframes psoCardIn{
+  from{opacity:0;transform:scale(.82) translateY(32px);}
+  to  {opacity:1;transform:scale(1)  translateY(0);}
+}
+
+/* Animated checkmark ring */
+.pso-check-ring{
+  width:72px;height:72px;margin:0 auto 20px;
+  color:var(--success);
+}
+.pso-check-svg{width:100%;height:100%;}
+.pso-circle{
+  stroke-dasharray:145;stroke-dashoffset:145;
+  animation:drawCircle .6s ease forwards;
+  animation-delay:.1s;
+}
+.pso-tick{
+  stroke-dasharray:40;stroke-dashoffset:40;
+  animation:drawTick .35s ease forwards;
+  animation-delay:.55s;
+}
+@keyframes drawCircle{to{stroke-dashoffset:0;}}
+@keyframes drawTick{to{stroke-dashoffset:0;}}
+
+/* Text */
+.pso-eyebrow{
+  font-size:11px;font-weight:700;
+  color:var(--accent2);letter-spacing:.1em;
+  text-transform:uppercase;margin-bottom:10px;
+}
+.pso-headline{
+  font-size:28px;font-weight:800;color:var(--text);
+  line-height:1.2;margin-bottom:10px;
+}
+.pso-message{
+  font-size:15px;color:var(--text2);margin-bottom:20px;line-height:1.5;
+}
+.pso-perks{
+  display:flex;flex-direction:column;gap:8px;
+  margin-bottom:24px;text-align:left;
+}
+.pso-perk{
+  display:flex;align-items:center;gap:10px;
+  font-size:13px;color:var(--text2);
+  background:var(--bg1);border:1px solid var(--border);
+  border-radius:10px;padding:8px 12px;
+  animation:psoFadeUp .4s ease forwards;
+  opacity:0;
+}
+.pso-perk svg{color:var(--success);flex-shrink:0;}
+@keyframes psoFadeUp{
+  from{opacity:0;transform:translateY(8px);}
+  to  {opacity:1;transform:translateY(0);}
+}
+
+/* CTA button */
+.pso-btn{
+  display:inline-flex;align-items:center;gap:8px;
+  background:linear-gradient(135deg,var(--accent),#7c6bff);
+  color:#fff;border:none;font-family:var(--sans);
+  font-size:15px;font-weight:700;
+  padding:13px 32px;border-radius:50px;
+  cursor:pointer;
+  box-shadow:0 6px 24px rgba(107,94,248,.45);
+  transition:transform .15s,box-shadow .15s;
+  margin-bottom:14px;
+}
+.pso-btn:hover{transform:translateY(-2px);box-shadow:0 10px 32px rgba(107,94,248,.55);}
+.pso-btn:active{transform:scale(.97);}
+
+.pso-sub{font-size:12px;color:var(--text3);}
