@@ -68,7 +68,7 @@ const server = http.createServer(async (req, res) => {
           },
           quantity: 1,
         }],
-        success_url: success_url + '?session_id={CHECKOUT_SESSION_ID}',
+        success_url: success_url + '&session_id={CHECKOUT_SESSION_ID}',
         cancel_url,
         customer_email: user_email || undefined,
         metadata: { uid: uid || '', plan },
