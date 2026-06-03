@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<title>Arnav AI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<link rel="stylesheet" href="css/styles.css"/>
+<script src="https://js.stripe.com/v3/"></script>
+</head>
+<body>
+
+<!-- ═══════════════ SPLASH SCREEN ═══════════════ -->
+<div id="splash">
+  <div class="splash-logo">
+    <svg viewBox="0 0 20 20" fill="none"><path d="M10 2L12.2 7.5H18L13.5 10.8L15.3 16.5L10 13.2L4.7 16.5L6.5 10.8L2 7.5H7.8L10 2Z" fill="white"/></svg>
+  </div>
+  <div class="splash-dots">
+    <div class="sdot"></div>
+    <div class="sdot"></div>
+    <div class="sdot"></div>
+  </div>
+</div>
+
+<!-- ═══════════════ AUTH PAGE ═══════════════ -->
+<div id="auth-page" class="page hidden">
+  <div class="auth-mesh">
+    <div class="mesh-blob mb1"></div>
+    <div class="mesh-blob mb2"></div>
+    <div class="mesh-blob mb3"></div>
+  </div>
+  <div class="auth-card">
+    <div class="auth-logo">
+      <div class="alogo-icon">
+        <svg viewBox="0 0 20 20" fill="none"><path d="M10 2L12.2 7.5H18L13.5 10.8L15.3 16.5L10 13.2L4.7 16.5L6.5 10.8L2 7.5H7.8L10 2Z" fill="white"/></svg>
+      </div>
+      <span class="alogo-name">Arnav AI</span>
+    </div>
+    <div class="auth-title" id="auth-title">Welcome back</div>
+    <div class="auth-sub" id="auth-sub">Sign in to your account to continue.</div>
+    <div class="auth-tabs">
+      <button class="atab on" id="tab-in" onclick="switchTab('in')">Sign In</button>
+      <button class="atab" id="tab-up" onclick="switchTab('up')">Create Account</button>
+    </div>
+    <div class="aerr" id="aerr"></div>
+    <div class="aok" id="aok"></div>
+
+    <!-- sign in -->
+    <div class="aform" id="form-in">
+      <div>
+        <label class="alabel">Email</label>
+        <input class="ainput" type="email" id="si-email" placeholder="you@example.com" autocomplete="email"/>
+      </div>
+      <div>
+        <label class="alabel">Password</label>
+        <div class="pw-wrap">
+          <input class="ainput" type="password" id="si-pass" placeholder="••••••••" autocomplete="current-password" style="padding-right:40px"/>
+          <button class="pw-toggle" type="button" onclick="togglePw('si-pass',this)" tabindex="-1">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+          </button>
+        </div>
+      </div>
+      <button class="abtn" id="si-btn" onclick="doSignIn()">Sign In</button>
+      <div class="adivider"><span>or continue with</span></div>
+      <button class="gbtn" onclick="doGoogle()">
+        <svg viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+        Google
+      </button>
+    </div>
+
+    <!-- sign up -->
+    <div class="aform off" id="form-up">
+      <div>
+        <label class="alabel">Display Name</label>
+        <input class="ainput" type="text" id="su-name" placeholder="Your name" autocomplete="name"/>
+      </div>
+      <div>
+        <label class="alabel">Email</label>
+        <input class="ainput" type="email" id="su-email" placeholder="you@example.com" autocomplete="email"/>
+      </div>
+      <div>
+        <label class="alabel">Password</label>
+        <div class="pw-wrap">
+          <input class="ainput" type="password" id="su-pass" placeholder="At least 8 characters" autocomplete="new-password" style="padding-right:40px"/>
+          <button class="pw-toggle" type="button" onclick="togglePw('su-pass',this)" tabindex="-1">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+          </button>
+        </div>
+        <div id="pw-strength" style="margin-top:6px;display:none;">
+          <div style="height:3px;border-radius:3px;background:var(--border2);overflow:hidden;"><div id="pw-bar" style="height:100%;border-radius:3px;transition:width .3s,background .3s;width:0;"></div></div>
+          <div id="pw-label" style="font-size:11px;color:var(--text3);margin-top:3px;"></div>
+        </div>
+      </div>
+      <button class="abtn" id="su-btn" onclick="doSignUp()">Create Account</button>
+      <div class="adivider"><span>or continue with</span></div>
+      <button class="gbtn" onclick="doGoogle()">
+        <svg viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+        Google
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ CHAT PAGE ═══════════════ -->
+<div id="chat-page" class="page hidden">
+  <div class="sb-overlay" id="sb-overlay" onclick="closeSb()"></div>
+
+  <!-- SIDEBAR -->
+  <div class="sidebar" id="sidebar">
+    <div class="sb-top">
+      <div class="sb-logo-icon"><svg viewBox="0 0 20 20" fill="none"><path d="M10 2L12.2 7.5H18L13.5 10.8L15.3 16.5L10 13.2L4.7 16.5L6.5 10.8L2 7.5H7.8L10 2Z" fill="white"/></svg></div>
+      <span class="sb-logo-name">Arnav AI</span>
+      <button class="sb-close tb-btn" onclick="closeSb()"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+    </div>
+    <button class="new-chat-btn" onclick="newChat()">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+      New conversation
+    </button>
+    <div class="sb-search-wrap">
+      <input class="sb-search" id="sb-search" placeholder="Search conversations…" oninput="filterHistory(this.value)"/>
+    </div>
+    <div class="sb-hist" id="sb-hist"></div>
+    <div class="sb-foot">
+      <div class="user-card" id="user-card" onclick="toggleUserMenu()">
+        <div class="u-avatar" id="u-avatar">?</div>
+        <div class="u-info">
+          <div class="u-name-row">
+            <div class="u-name" id="u-name">Loading…</div>
+            <span class="u-plan-badge" id="u-plan-badge" style="display:none"></span>
+          </div>
+          <div class="u-email" id="u-email"></div>
+        </div>
+        <svg class="u-chevron" id="u-chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24" width="13" height="13"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        <div class="u-menu" id="u-menu">
+          <div class="u-mi accent" onclick="openSettings()">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3"/></svg>
+            Settings
+          </div>
+          <div class="u-mi" onclick="openPlans()">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
+            Plans &amp; Billing
+          </div>
+          <div class="u-mi" onclick="openShortcuts()">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+            Keyboard shortcuts
+          </div>
+          <div class="u-mi" onclick="openStats()">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+            Usage stats
+          </div>
+          <div class="u-mi" onclick="openBookmarks()">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>
+            Bookmarks
+          </div>
+          <div class="u-menu-divider"></div>
+          <div class="u-mi red" onclick="clearAllConversations()">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+            Clear all chats
+          </div>
+          <div class="u-mi red" onclick="doSignOut()">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+            Sign out
+          </div>
+        </div>
+      </div>
+      <div class="footer-brand">Arnav &copy; <span id="footer-year"></span></div>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main" id="main">
+    <!-- Top bar -->
+    <div class="topbar">
+      <button class="tb-btn" id="sb-toggle" onclick="toggleSb()">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
+      <span class="tb-title" id="tb-title">New conversation</span>
+      <!-- Search in conversation -->
+      <button class="tb-btn" onclick="openConvSearch()" title="Search in conversation (Ctrl+F)">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m21 21-4.35-4.35"/></svg>
+      </button>
+      <!-- Share -->
+      <button class="tb-btn" id="share-topbar-btn" onclick="openShare()" title="Share (Ctrl+Shift+S)">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="17" height="17"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
+      </button>
+      <div class="model-selector">
+        <div class="model-btn" id="model-btn">
+          <div class="model-dot"></div>
+          <span id="model-name">Arnav AI</span>
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- In-conversation search bar -->
+    <div class="conv-search-bar" id="conv-search-bar">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m21 21-4.35-4.35"/></svg>
+      <input type="text" id="conv-search-input" placeholder="Search in conversation…" oninput="doConvSearch()" onkeydown="convSearchKey(event)"/>
+      <span class="search-info" id="search-info"></span>
+      <button class="search-nav-btn" onclick="searchNav(-1)" title="Previous">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/></svg>
+      </button>
+      <button class="search-nav-btn" onclick="searchNav(1)" title="Next">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+      </button>
+      <button class="search-close-btn" onclick="closeConvSearch()">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+
+    <!-- Messages -->
+    <div class="msgs-area" id="msgs-area">
+      <div class="msgs-inner" id="msgs-inner">
+        <div class="empty-state" id="empty-state">
+          <div class="empty-glyph">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+          </div>
+          <div class="empty-title">Hi, I'm Arnav AI</div>
+          <div class="empty-sub">Your personal assistant powered by your own model. Ask me anything — I'm here to help.</div>
+          <div class="chips-grid">
+            <div class="chip" onclick="useChip(this)">
+              <span class="chip-icon">✍️</span>
+              <div class="chip-text"><span class="chip-label">Write & Edit</span><span class="chip-hint">Emails, essays, code</span></div>
+            </div>
+            <div class="chip" onclick="useChip(this)">
+              <span class="chip-icon">🧠</span>
+              <div class="chip-text"><span class="chip-label">Explain & Learn</span><span class="chip-hint">Break down any topic</span></div>
+            </div>
+            <div class="chip" onclick="useChip(this)">
+              <span class="chip-icon">💡</span>
+              <div class="chip-text"><span class="chip-label">Brainstorm</span><span class="chip-hint">Ideas and strategies</span></div>
+            </div>
+            <div class="chip" onclick="useChip(this)">
+              <span class="chip-icon">🔍</span>
+              <div class="chip-text"><span class="chip-label">Summarize</span><span class="chip-hint">Get the key points</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Scroll to bottom button -->
+    <button class="scroll-btn" id="scroll-btn" onclick="scrollToBottom()" title="Scroll to bottom">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/></svg>
+    </button>
+
+    <!-- Input -->
+    <div class="input-area">
+      <div class="input-outer">
+        <div class="input-topbar">
+          <button class="itb-btn" id="btn-web" onclick="toggleWebMode()" title="Web search mode">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9"/></svg>
+            <span class="btn-label">Search</span>
+          </button>
+          <button class="itb-btn" id="btn-code" onclick="toggleCodeMode()" title="Code mode">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>
+            <span class="btn-label">Code</span>
+          </button>
+          <div class="itb-spacer"></div>
+          <span class="char-count" id="char-count">0 / 2000</span>
+        </div>
+        <div class="input-box" id="input-box">
+          <div class="input-row">
+            <textarea id="cinput" placeholder="Message Arnav AI…" rows="1" oninput="onInput(this)" onkeydown="onKey(event)"></textarea>
+            <button class="mic-btn" id="mic-btn" onclick="toggleVoice()" title="Voice input">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 016 0v6a3 3 0 01-3 3z"/></svg>
+            </button>
+            <button class="send-btn" id="send-btn" onclick="sendMsg()" disabled>
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </button>
+            <button class="stop-btn" id="stop-btn" onclick="stopGen()">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2" stroke-linecap="round" stroke-width="2"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="input-footer">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          <kbd>Enter</kbd> send · <kbd>Shift+Enter</kbd> newline · <kbd>Ctrl+K</kbd> new · <kbd>↑</kbd> history
+          <span class="footer-copy">Arnav &copy; <span id="footer-year-desk"></span></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SETTINGS MODAL -->
+<div class="modal-bg" id="settings-modal" onclick="closeModal('settings-modal',event)">
+  <div class="modal">
+    <div class="modal-head">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18" style="color:var(--accent2)"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3"/></svg>
+      <span class="modal-title">Settings</span>
+      <button class="modal-close" onclick="closeModalId('settings-modal')"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <!-- Theme -->
+      <div class="setting-row">
+        <div class="setting-icon"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"/></svg></div>
+        <div class="setting-info"><div class="setting-label">Theme</div><div class="setting-desc">Color scheme</div></div>
+        <div class="theme-row">
+          <button class="theme-opt active" data-theme="dark" onclick="applyTheme('dark')">Dark</button>
+          <button class="theme-opt" data-theme="dim" onclick="applyTheme('dim')">Dim</button>
+          <button class="theme-opt" data-theme="oled" onclick="applyTheme('oled')">OLED</button>
+          <button class="theme-opt" data-theme="light" onclick="applyTheme('light')">Light</button>
+        </div>
+      </div>
+      <!-- Read aloud -->
+      <div class="setting-row">
+        <div class="setting-icon"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072M12 6a7 7 0 010 12M8.464 8.464a5 5 0 000 7.072"/></svg></div>
+        <div class="setting-info"><div class="setting-label">Read answers aloud</div><div class="setting-desc">Auto-speak AI responses</div></div>
+        <div class="toggle" id="tog-tts" onclick="toggleSetting('tts')"></div>
+      </div>
+      <!-- Font size -->
+      <div class="setting-row">
+        <div class="setting-icon"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h7"/></svg></div>
+        <div class="setting-info"><div class="setting-label">Font size</div><div class="setting-desc">Adjust chat text size</div></div>
+        <div class="font-control">
+          <button class="font-btn" onclick="changeFontSize(-1)">−</button>
+          <span class="font-size-val" id="font-size-val">15</span>
+          <button class="font-btn" onclick="changeFontSize(1)">+</button>
+        </div>
+      </div>
+      <!-- Sound -->
+      <div class="setting-row">
+        <div class="setting-icon"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg></div>
+        <div class="setting-info"><div class="setting-label">Sound effects</div><div class="setting-desc">Play a chime when AI responds</div></div>
+        <div class="toggle" id="tog-sound" onclick="toggleSetting('sound')"></div>
+      </div>
+      <!-- Compact -->
+      <div class="setting-row">
+        <div class="setting-icon"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h8m-8 6h16"/></svg></div>
+        <div class="setting-info"><div class="setting-label">Compact messages</div><div class="setting-desc">Reduce spacing between messages</div></div>
+        <div class="toggle" id="tog-compact" onclick="toggleSetting('compact')"></div>
+      </div>
+      <!-- Auto-scroll -->
+      <div class="setting-row">
+        <div class="setting-icon"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg></div>
+        <div class="setting-info"><div class="setting-label">Auto-scroll</div><div class="setting-desc">Scroll to bottom on new messages</div></div>
+        <div class="toggle on" id="tog-scroll" onclick="toggleSetting('scroll')"></div>
+      </div>
+      <!-- Line numbers -->
+      <div class="setting-row">
+        <div class="setting-icon"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg></div>
+        <div class="setting-info"><div class="setting-label">Code line numbers</div><div class="setting-desc">Show line numbers in code blocks</div></div>
+        <div class="toggle" id="tog-lines" onclick="toggleSetting('lines')"></div>
+      </div>
+      <!-- Custom instructions -->
+      <div class="setting-row col">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div class="setting-icon"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg></div>
+          <div class="setting-info"><div class="setting-label">Custom instructions</div><div class="setting-desc">Guide how Arnav AI responds to you</div></div>
+        </div>
+        <textarea class="system-ta" id="system-prompt-input" maxlength="500" placeholder="e.g. Always be concise. Prefer code examples. Use formal language." oninput="updateSysCount()"></textarea>
+        <div class="sys-row-footer">
+          <span class="sys-count" id="sys-count">0 / 500</span>
+          <button class="save-sys-btn" onclick="saveSystemPrompt()">Save</button>
+        </div>
+      </div>
+      <!-- Reset settings -->
+      <div style="text-align:center;padding:10px 0 2px;">
+        <button class="reset-defaults-btn" onclick="resetSettings()">Reset all settings to defaults</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SHORTCUTS MODAL -->
+<div class="modal-bg" id="shortcuts-modal" onclick="closeModal('shortcuts-modal',event)">
+  <div class="modal">
+    <div class="modal-head">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18" style="color:var(--accent2)"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+      <span class="modal-title">Keyboard Shortcuts</span>
+      <button class="modal-close" onclick="closeModalId('shortcuts-modal')"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div class="shortcut-row"><span class="shortcut-desc">New conversation</span><div class="shortcut-keys"><kbd>Ctrl</kbd><kbd>K</kbd></div></div>
+      <div class="shortcut-row"><span class="shortcut-desc">Send message</span><div class="shortcut-keys"><kbd>Enter</kbd></div></div>
+      <div class="shortcut-row"><span class="shortcut-desc">New line</span><div class="shortcut-keys"><kbd>Shift</kbd><kbd>Enter</kbd></div></div>
+      <div class="shortcut-row"><span class="shortcut-desc">Previous message</span><div class="shortcut-keys"><kbd>↑</kbd> (empty input)</div></div>
+      <div class="shortcut-row"><span class="shortcut-desc">Toggle sidebar</span><div class="shortcut-keys"><kbd>Ctrl</kbd><kbd>B</kbd></div></div>
+      <div class="shortcut-row"><span class="shortcut-desc">Focus input</span><div class="shortcut-keys"><kbd>/</kbd></div></div>
+      <div class="shortcut-row"><span class="shortcut-desc">Search in chat</span><div class="shortcut-keys"><kbd>Ctrl</kbd><kbd>F</kbd></div></div>
+      <div class="shortcut-row"><span class="shortcut-desc">Share conversation</span><div class="shortcut-keys"><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>S</kbd></div></div>
+      <div class="shortcut-row"><span class="shortcut-desc">Open settings</span><div class="shortcut-keys"><kbd>Ctrl</kbd><kbd>,</kbd></div></div>
+      <div class="shortcut-row"><span class="shortcut-desc">Keyboard shortcuts</span><div class="shortcut-keys"><kbd>Ctrl</kbd><kbd>/</kbd></div></div>
+      <div class="shortcut-row"><span class="shortcut-desc">Rename conversation</span><div class="shortcut-keys"><kbd>Double-click</kbd> title</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- SHARE MODAL -->
+<div class="modal-bg" id="share-modal" onclick="if(event.target.id==='share-modal')closeModalId('share-modal')">
+  <div class="modal">
+    <div class="modal-head">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="17" height="17" style="color:var(--accent2);flex-shrink:0"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
+      <span class="modal-title">Share Conversation</span>
+      <button class="modal-close" onclick="closeModalId('share-modal')"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div class="share-preview">
+        <div class="share-preview-title">Preview</div>
+        <div id="share-msgs-preview"></div>
+      </div>
+      <div class="share-btns">
+        <button class="share-btn primary" onclick="doShare('copy')">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>Copy
+        </button>
+        <button class="share-btn" onclick="doShare('download')">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>.txt
+        </button>
+        <button class="share-btn" onclick="doShare('markdown')">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>.md
+        </button>
+        <button class="share-btn" onclick="doShare('native')">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>Share
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- STATS MODAL -->
+<div class="modal-bg" id="stats-modal" onclick="if(event.target.id==='stats-modal')closeModalId('stats-modal')">
+  <div class="modal">
+    <div class="modal-head">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18" style="color:var(--accent2)"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+      <span class="modal-title">Usage Stats</span>
+      <button class="modal-close" onclick="closeModalId('stats-modal')"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div class="stats-grid">
+        <div class="stat-card"><div class="stat-icon">💬</div><div class="stat-val" id="stat-msgs">—</div><div class="stat-lbl">Messages sent</div></div>
+        <div class="stat-card"><div class="stat-icon">🗂️</div><div class="stat-val" id="stat-convs">—</div><div class="stat-lbl">Conversations</div></div>
+        <div class="stat-card"><div class="stat-icon">⭐</div><div class="stat-val" id="stat-bms">—</div><div class="stat-lbl">Bookmarks saved</div></div>
+        <div class="stat-card"><div class="stat-icon">⏱️</div><div class="stat-val" id="stat-session">—</div><div class="stat-lbl">Session time</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- BOOKMARKS MODAL -->
+<div class="modal-bg" id="bookmarks-modal" onclick="if(event.target.id==='bookmarks-modal')closeModalId('bookmarks-modal')">
+  <div class="modal">
+    <div class="modal-head">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18" style="color:var(--accent2)"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>
+      <span class="modal-title">Bookmarks</span>
+      <button class="modal-close" onclick="closeModalId('bookmarks-modal')"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div class="bm-list" id="bm-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- FULLSCREEN CODE MODAL -->
+<div class="modal-bg" id="fullscreen-modal" onclick="closeFullscreenModal(event)">
+  <div class="modal fs-modal">
+    <div class="modal-head">
+      <span class="lang-dot" id="fs-lang-dot"></span>
+      <span class="modal-title" id="fs-lang" style="font-family:var(--mono);font-size:13px;">code</span>
+      <div style="display:flex;gap:6px;margin-left:auto;">
+        <button class="code-copy" id="fs-copy-btn" onclick="copyFullscreen()">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>Copy
+        </button>
+        <button class="modal-close" onclick="closeModalId('fullscreen-modal')">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+    </div>
+    <div style="flex:1;overflow:hidden;display:flex;flex-direction:column;">
+      <pre class="fs-pre"><code class="hljs" id="fs-code"></code></pre>
+    </div>
+  </div>
+</div>
+
+<!-- PRICING MODAL -->
+<div class="modal-bg pricing-modal-bg" id="pricing-modal" onclick="if(event.target.id==='pricing-modal')closeModalId('pricing-modal')">
+  <div class="modal pricing-modal-inner">
+    <div class="modal-head">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18" style="color:var(--accent2)"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
+      <span class="modal-title">Plans &amp; Billing</span>
+      <button class="modal-close" onclick="closeModalId('pricing-modal')"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <p class="pricing-sub">Upgrade anytime. Cancel anytime. All plans include a 7-day free trial.</p>
+
+      <div class="plans-grid">
+
+        <!-- FREE -->
+        <div class="plan-card" id="plan-card-free">
+          <span class="plan-current-badge" id="badge-free" style="display:none">Current Plan</span>
+          <div class="plan-header">
+            <div class="plan-icon plan-icon-free">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="20" height="20"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3l14 9-14 9V3z"/></svg>
+            </div>
+            <div>
+              <div class="plan-name">Free</div>
+              <div class="plan-tagline">Get started for free</div>
+            </div>
+          </div>
+          <div class="plan-price">
+            <span class="price-amount">$0</span>
+            <span class="price-period">/ month</span>
+          </div>
+          <ul class="plan-features">
+            <li><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>10 messages per day</li>
+            <li><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>Standard AI responses</li>
+            <li><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>Conversation history</li>
+            <li><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>All 4 themes</li>
+            <li><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>Voice input</li>
+          </ul>
+          <button class="plan-cta plan-cta-free" id="cta-free" onclick="buyPlan('free')">Current Plan</button>
+        </div>
+
+        <!-- PLUS -->
+        <div class="plan-card plan-card-popular" id="plan-card-plus">
+          <span class="plan-popular-badge">Most Popular</span>
+          <span class="plan-current-badge" id="badge-plus" style="display:none">Current Plan</span>
+          <div class="plan-header">
+            <div class="plan-icon plan-icon-plus">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="20" height="20"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+            </div>
+            <div>
+              <div class="plan-name">Plus</div>
+              <div class="plan-tagline">For power users</div>
+            </div>
+          </div>
+          <div class="plan-price">
+            <span class="price-amount">$20</span>
+            <span class="price-period">/ month</span>
+          </div>
+          <ul class="plan-features">
+            <li><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>Unlimited messages</li>
+            <li><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>Priority AI responses</li>
+            <li><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>Code mode &amp; export</li>
+            <li><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>Bookmarks &amp; sharing</li>
+            <li><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>Custom instructions</li>
+            <li><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>Usage analytics</li>
+          </ul>
+          <button class="plan-cta plan-cta-plus" id="cta-plus" data-plan="plus" onclick="buyPlan('plus')">Upgrade to Plus</button>
+        </div>
+
+        <!-- PRO -->
+        <div class="plan-card" id="plan-card-pro">
+          <span class="plan-current-badge" id="badge-pro" style="display:none">Current Plan</span>
+          <div class="plan-header">
+            <div class="plan-icon plan-icon-pro">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="20" height="20"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/></svg>
+            </div>
+            <div>
+              <div class="plan-name">Pro</div>
+              <div class="plan-tagline">Maximum capability</div>
+            </div>
+          </div>
+          <div class="plan-price">
+            <span class="price-amount">$200</span>
+            <span class="price-period">/ month</span>
+          </div>
+          <ul class="plan-features">
+            <li><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>Everything in Plus</li>
+            <li><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>Extended response length</li>
+            <li><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>Dedicated processing queue</li>
+            <li><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>Advanced usage insights</li>
+            <li><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>Early access to new models</li>
+            <li><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>Priority email support</li>
+          </ul>
+          <button class="plan-cta plan-cta-pro" id="cta-pro" data-plan="pro" onclick="buyPlan('pro')">Upgrade to Pro</button>
+        </div>
+
+      </div><!-- /plans-grid -->
+
+      <div class="stripe-test-notice">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        <span><strong>Test Mode</strong> — Use card <code>4242 4242 4242 4242</code>, any future expiry, any CVC.</span>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="toasts" id="toasts"></div>
+
+<script>
+// Set both footer years immediately (before JS module loads)
+['footer-year','footer-year-desk'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=new Date().getFullYear();});
+</script>
+
+<!-- app.js loads first (defines globals), firebase-init.js module is deferred by default -->
+<script src="js/app.js"></script>
+<script type="module" src="js/firebase-init.js"></script>
+</body>
+</html>
