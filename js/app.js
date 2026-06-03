@@ -176,9 +176,16 @@ function onLogin(u){
       <div class="chip" onclick="useChip(this)"><span class="chip-icon">💡</span><div class="chip-text"><span class="chip-label">Brainstorm</span><span class="chip-hint">Ideas and strategies</span></div></div>
       <div class="chip" onclick="useChip(this)"><span class="chip-icon">🔍</span><div class="chip-text"><span class="chip-label">Summarize</span><span class="chip-hint">Get the key points</span></div></div>
     </div></div>`;
+  // Apply gradient avatar immediately
+  const _n=u.displayName||u.email.split('@')[0];
+  $('u-avatar').style.background=_avatarGradient(_n);
   loadFirestoreHistory(u.uid);
   loadBookmarks(u.uid);
   loadSubscription();
+  loadProfile(u.uid);
+  initPersona();
+  renderDailyBar();
+  _initFocusMode();
   _handleStripeRedirect();
   setTimeout(showWelcome,700);
 }
@@ -224,6 +231,9 @@ async function doSignOut(){
     allHistory=[];sessions={};msgs=[];currentChatId=null;chatTitle='';
     bookmarks=[];bookmarksSet=new Set();
     _currentPlan='free';_applyPlanUI('free');
+    _userProfile={};
+    _activePersona='assistant';_personaBasePrompt='';
+    initPersona();
     renderHistory([]);
   }catch(e){}
 }
@@ -595,6 +605,7 @@ document.addEventListener('keydown',e=>{
   if((e.ctrlKey||e.metaKey)&&e.key==='b'){e.preventDefault();toggleSb();return;}
   if((e.ctrlKey||e.metaKey)&&e.key===','){e.preventDefault();openSettings();return;}
   if((e.ctrlKey||e.metaKey)&&e.key==='/'){e.preventDefault();openShortcuts();return;}
+  if((e.ctrlKey||e.metaKey)&&e.shiftKey&&(e.key==='f'||e.key==='F')){e.preventDefault();toggleFocusMode();return;}
   if((e.ctrlKey||e.metaKey)&&e.key==='f'){e.preventDefault();openConvSearch();return;}
 });
 
@@ -895,6 +906,7 @@ async function regenLast(){
 async function sendMsg(){
   if(busy)return;
   const inp=$('cinput'),text=inp.value.trim();if(!text)return;
+  if(!_checkDailyLimit())return;
   if(navigator.vibrate)navigator.vibrate(5);
   _saveInputHistory(text);
   inp.value='';inp.style.height='auto';clearDraft();$('send-btn').disabled=true;$('char-count').textContent='0 / 2000';
@@ -909,6 +921,7 @@ async function sendMsg(){
   msgs.push({role:'user',content:text});
   appendUserBubble(text,msgs.length-1);
   updateStats(isNew);
+  _incDailyCount();renderDailyBar();
   await callAPI(text,true);
 }
 
@@ -1003,7 +1016,8 @@ async function callAPI(text,isNew){
   let _streamStarted=false;
   try{
     const tok=await window._auth.currentUser.getIdToken();
-    const msgsToSend=systemPrompt?[{role:'system',content:systemPrompt},...msgs]:msgs;
+    const _combinedSys=_buildSystemPrompt();
+    const msgsToSend=_combinedSys?[{role:'system',content:_combinedSys},...msgs]:msgs;
     const res=await fetch(window.API_URL,{
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},
@@ -1331,6 +1345,7 @@ function _applyPlanUI(plan){
   }
   const upBtn=$('upgrade-topbar-btn');
   if(upBtn)upBtn.style.display=(plan==='free')?'':'none';
+  renderDailyBar();
 }
 
 function _showCheckoutOverlay(){
@@ -1485,6 +1500,303 @@ async function _handleStripeRedirect(){
     }
   }else if(payment==='cancelled'){
     setTimeout(()=>toast('Payment cancelled','info',3000),400);
+  }
+}
+
+// ══════════════════════════════════════
+// AVATAR GRADIENT HELPERS
+// ══════════════════════════════════════
+const _AV_GRADIENTS=[
+  'linear-gradient(135deg,#667eea,#764ba2)',
+  'linear-gradient(135deg,#f093fb,#f5576c)',
+  'linear-gradient(135deg,#4facfe,#00f2fe)',
+  'linear-gradient(135deg,#43e97b,#38f9d7)',
+  'linear-gradient(135deg,#fa709a,#fee140)',
+  'linear-gradient(135deg,#a18cd1,#fbc2eb)',
+  'linear-gradient(135deg,#fccb90,#d57eeb)',
+  'linear-gradient(135deg,#96fbc4,#f9f586)',
+];
+function _avatarGradient(name){
+  const c=(name||'A').toUpperCase().charCodeAt(0)||65;
+  return _AV_GRADIENTS[c%_AV_GRADIENTS.length];
+}
+function _initials(name){
+  const p=(name||'?').trim().split(/\s+/);
+  return p.length>=2?(p[0][0]+p[1][0]).toUpperCase():(name||'?').slice(0,2).toUpperCase();
+}
+
+// ══════════════════════════════════════
+// PROFILE
+// ══════════════════════════════════════
+let _userProfile={};
+
+async function loadProfile(uid){
+  if(!uid||!window._db)return;
+  try{
+    const snap=await window._fsGetDoc(window._fsDoc(window._db,'users',uid,'profile'));
+    _userProfile=snap.exists()?snap.data():{};
+  }catch(e){_userProfile={};}
+  _updateStreak();
+}
+
+function _updateStreak(){
+  if(!currentUserId||!window._db)return;
+  const today=new Date().toISOString().slice(0,10);
+  if(_userProfile.lastActiveDate===today)return;
+  const yesterday=new Date(Date.now()-864e5).toISOString().slice(0,10);
+  let streak=_userProfile.streak||0;
+  streak=(_userProfile.lastActiveDate===yesterday)?streak+1:1;
+  _userProfile.lastActiveDate=today;
+  _userProfile.streak=streak;
+  window._fsSet(window._fsDoc(window._db,'users',currentUserId,'profile'),
+    {lastActiveDate:today,streak},{merge:true}).catch(()=>{});
+}
+
+async function openProfile(){
+  closeUserMenu();
+  const u=window._auth?.currentUser;if(!u)return;
+  const n=u.displayName||u.email.split('@')[0];
+  const grad=_avatarGradient(n);
+  const inits=_initials(n);
+
+  // Avatar
+  const av=$('prof-avatar-xl');
+  if(av){av.textContent=inits;av.style.background=grad;}
+
+  // Identity
+  _set('prof-disp-name',n);
+  _set('prof-email-disp',u.email);
+
+  // Member since
+  const mb=$('prof-member-badge');
+  if(mb){
+    const ct=u.metadata?.creationTime;
+    if(ct){
+      const d=new Date(ct);
+      mb.textContent='Member since '+d.toLocaleDateString('en-US',{month:'short',year:'numeric'});
+    }
+  }
+
+  // Plan badge in profile
+  const pb=$('prof-plan-badge');
+  if(pb){
+    if(_currentPlan==='plus'){pb.textContent='⚡ Plus';pb.className='u-plan-badge plus';pb.style.display='';}
+    else if(_currentPlan==='pro'){pb.textContent='👑 Pro';pb.className='u-plan-badge pro';pb.style.display='';}
+    else pb.style.display='none';
+  }
+  _set('prof-plan-ro',{free:'Free',plus:'Plus ⚡',pro:'Pro 👑'}[_currentPlan]||'Free');
+
+  // Upgrade button
+  const ub=$('prof-upgrade-btn');
+  if(ub)ub.style.display=_currentPlan==='free'?'':'none';
+
+  // Form fields
+  const ni=$('prof-name-inp');if(ni)ni.value=_userProfile.displayName||n;
+  const bi=$('prof-bio-inp');if(bi)bi.value=_userProfile.bio||'';
+  const li=$('prof-loc-inp');if(li)li.value=_userProfile.location||'';
+
+  // Account
+  _set('prof-email-ro',u.email);
+  _set('prof-uid-ro',u.uid);
+
+  // Stats
+  _set('prof-streak-val',_userProfile.streak||0);
+  _set('prof-bms-val',bookmarks.length);
+  _set('prof-convs-val',allHistory.length||'—');
+  _set('prof-msgs-val','—');
+
+  // Clear save status
+  const ss=$('prof-save-status');if(ss)ss.textContent='';
+
+  // Fetch Firestore stats
+  if(currentUserId&&window._db){
+    window._fsGetDoc(window._fsDoc(window._db,'users',currentUserId,'stats')).then(snap=>{
+      if(snap.exists()){
+        const d=snap.data();
+        if(d.totalMessages!=null)_set('prof-msgs-val',d.totalMessages);
+        if(d.totalConversations!=null)_set('prof-convs-val',d.totalConversations);
+      }
+    }).catch(()=>{});
+  }
+
+  $('profile-modal').classList.add('on');
+}
+
+// Small helper to set textContent safely
+function _set(id,val){const el=$(id);if(el)el.textContent=val??'';}
+
+async function saveProfile(){
+  const u=window._auth?.currentUser;if(!u)return;
+  const btn=$('prof-save-btn'),ss=$('prof-save-status');
+  if(btn){btn.disabled=true;btn.textContent='Saving…';}
+
+  const newName=($('prof-name-inp')?.value||'').trim()||u.displayName||u.email.split('@')[0];
+  const bio=($('prof-bio-inp')?.value||'').trim().slice(0,200);
+  const loc=($('prof-loc-inp')?.value||'').trim().slice(0,80);
+
+  try{
+    if(newName!==u.displayName)await window._upPro(u,{displayName:newName});
+
+    if(window._db){
+      await window._fsSet(
+        window._fsDoc(window._db,'users',currentUserId,'profile'),
+        {displayName:newName,bio,location:loc,updatedAt:window._fsTimestamp()},
+        {merge:true}
+      );
+    }
+    _userProfile={..._userProfile,displayName:newName,bio,location:loc};
+
+    // Refresh sidebar avatar
+    const grad=_avatarGradient(newName);
+    const av=$('u-avatar');
+    if(av){av.textContent=_initials(newName);av.style.background=grad;}
+    _set('u-name',newName);
+    _set('prof-disp-name',newName);
+    const pavEl=$('prof-avatar-xl');
+    if(pavEl){pavEl.textContent=_initials(newName);pavEl.style.background=grad;}
+
+    if(ss){ss.textContent='✓ Saved';ss.style.color='var(--success)';}
+    toast('Profile saved','ok',2000);
+  }catch(err){
+    if(ss){ss.textContent='Save failed';ss.style.color='var(--danger)';}
+    toast('Could not save: '+err.message,'err');
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='Save Changes';}
+    setTimeout(()=>{if(ss&&ss.textContent!=='')ss.textContent='';},4000);
+  }
+}
+
+// ══════════════════════════════════════
+// AI PERSONA SELECTOR
+// ══════════════════════════════════════
+const PERSONAS=[
+  {id:'assistant',icon:'⚡',name:'Assistant',desc:'Helpful & balanced',   prompt:''},
+  {id:'professor',icon:'🎓',name:'Professor',desc:'Academic & detailed',  prompt:'You are a knowledgeable professor. Give thorough, well-structured explanations with examples. Use clear academic language.'},
+  {id:'creative', icon:'🎨',name:'Creative', desc:'Imaginative & expressive',prompt:'You are a creative thinker and writer. Use vivid language, interesting metaphors, and original ideas. Be imaginative and engaging.'},
+  {id:'coder',    icon:'💻',name:'Coder',    desc:'Technical & precise',  prompt:'You are an expert software engineer. Prioritize code examples, technical accuracy, and best practices. Be direct and concise.'},
+  {id:'concise',  icon:'🎯',name:'Concise',  desc:'Brief & direct',       prompt:'Be extremely concise. Use short sentences. Give direct answers with minimal explanation. Avoid preamble or filler.'},
+];
+let _activePersona='assistant';
+let _personaBasePrompt='';
+let _personaPickerOpen=false;
+
+function initPersona(){
+  _activePersona=localStorage.getItem('arnav-persona')||'assistant';
+  const p=PERSONAS.find(x=>x.id===_activePersona)||PERSONAS[0];
+  _personaBasePrompt=p.prompt;
+  _set('persona-icon',p.icon);
+  _set('persona-label',p.name);
+}
+
+function _buildSystemPrompt(){
+  const parts=[];
+  if(_personaBasePrompt)parts.push(_personaBasePrompt);
+  if(systemPrompt)parts.push(systemPrompt);
+  return parts.join('\n\n');
+}
+
+function togglePersonaPicker(){
+  _personaPickerOpen=!_personaPickerOpen;
+  const dd=$('persona-dropdown');
+  if(!dd)return;
+  if(_personaPickerOpen){
+    dd.innerHTML=PERSONAS.map(p=>`
+      <div class="persona-opt${_activePersona===p.id?' active':''}" onclick="setPersona('${p.id}')">
+        <span class="persona-opt-icon">${p.icon}</span>
+        <div class="persona-opt-text">
+          <div class="persona-opt-name">${p.name}</div>
+          <div class="persona-opt-desc">${p.desc}</div>
+        </div>
+        ${_activePersona===p.id?'<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="13" height="13"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>':''}
+      </div>`).join('');
+    dd.classList.add('on');
+    $('persona-btn')?.classList.add('on');
+  }else{
+    _closePersonaPicker();
+  }
+}
+
+function _closePersonaPicker(){
+  _personaPickerOpen=false;
+  $('persona-dropdown')?.classList.remove('on');
+  $('persona-btn')?.classList.remove('on');
+}
+
+function setPersona(id){
+  _activePersona=id;
+  localStorage.setItem('arnav-persona',id);
+  const p=PERSONAS.find(x=>x.id===id)||PERSONAS[0];
+  _personaBasePrompt=p.prompt;
+  _set('persona-icon',p.icon);
+  _set('persona-label',p.name);
+  _closePersonaPicker();
+  toast(p.icon+' '+p.name+' mode','info',1800);
+}
+
+document.addEventListener('click',e=>{
+  if(_personaPickerOpen&&!$('persona-wrap')?.contains(e.target))_closePersonaPicker();
+});
+
+// ══════════════════════════════════════
+// DAILY MESSAGE LIMIT (free tier)
+// ══════════════════════════════════════
+const FREE_MSG_LIMIT=10;
+
+function _dailyKey(){return'arnav-daily-'+new Date().toISOString().slice(0,10);}
+
+function _getDailyCount(){
+  return parseInt(localStorage.getItem(_dailyKey())||'0',10);
+}
+
+function _incDailyCount(){
+  const k=_dailyKey(),n=_getDailyCount()+1;
+  localStorage.setItem(k,n);
+  // prune old keys
+  try{Object.keys(localStorage).filter(x=>x.startsWith('arnav-daily-')&&x!==k).forEach(x=>localStorage.removeItem(x));}catch(e){}
+  return n;
+}
+
+function renderDailyBar(){
+  const bar=$('daily-bar');
+  if(!bar)return;
+  if(_currentPlan!=='free'){bar.style.display='none';return;}
+  const count=_getDailyCount();
+  const pct=Math.min(100,count/FREE_MSG_LIMIT*100);
+  bar.style.display='';
+  const fill=$('daily-bar-fill');if(fill)fill.style.width=pct+'%';
+  const lbl=$('daily-bar-label');if(lbl)lbl.textContent=count+' / '+FREE_MSG_LIMIT+' messages today';
+  bar.classList.toggle('limit-hit',count>=FREE_MSG_LIMIT);
+}
+
+function _checkDailyLimit(){
+  if(_currentPlan!=='free')return true;
+  if(_getDailyCount()>=FREE_MSG_LIMIT){
+    toast('Daily limit reached ('+FREE_MSG_LIMIT+' messages). Upgrade for unlimited! ⚡','err',5000);
+    setTimeout(openPlans,800);
+    return false;
+  }
+  return true;
+}
+
+// ══════════════════════════════════════
+// FOCUS MODE
+// ══════════════════════════════════════
+let _focusMode=false;
+
+function toggleFocusMode(){
+  _focusMode=!_focusMode;
+  document.body.classList.toggle('focus-mode',_focusMode);
+  $('focus-btn')?.classList.toggle('on',_focusMode);
+  if(_focusMode&&sbState)closeSb();
+  toast(_focusMode?'Focus mode on — Ctrl+Shift+F to exit':'Focus mode off','info',1800);
+  localStorage.setItem('arnav-focus',_focusMode?'1':'0');
+}
+
+function _initFocusMode(){
+  if(localStorage.getItem('arnav-focus')==='1'){
+    _focusMode=true;
+    document.body.classList.add('focus-mode');
+    $('focus-btn')?.classList.add('on');
   }
 }
 
