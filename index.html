@@ -136,6 +136,10 @@
         </div>
         <svg class="u-chevron" id="u-chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24" width="13" height="13"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
         <div class="u-menu" id="u-menu">
+          <div class="u-mi" onclick="openProfile()">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+            My Profile
+          </div>
           <div class="u-mi accent" onclick="openSettings()">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3"/></svg>
             Settings
@@ -187,6 +191,9 @@
       <button class="tb-btn" id="share-topbar-btn" onclick="openShare()" title="Share (Ctrl+Shift+S)">
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="17" height="17"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
       </button>
+      <button class="tb-btn" id="focus-btn" onclick="toggleFocusMode()" title="Focus mode (Ctrl+Shift+F)">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/></svg>
+      </button>
       <button class="upgrade-topbar-btn" id="upgrade-topbar-btn" onclick="openPlans()" style="display:none">
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="13" height="13"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
         Upgrade
@@ -197,6 +204,16 @@
           <span id="model-name">Arnav AI</span>
           <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
         </div>
+      </div>
+    </div>
+
+    <!-- Daily message limit bar (free users) -->
+    <div class="daily-bar" id="daily-bar" style="display:none">
+      <div class="daily-bar-inner">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="11" height="11" style="flex-shrink:0;opacity:.7"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        <span id="daily-bar-label">0 / 10 messages today</span>
+        <div class="daily-bar-track"><div class="daily-bar-fill" id="daily-bar-fill" style="width:0%"></div></div>
+        <button class="daily-upgrade-btn" onclick="openPlans()">Upgrade for unlimited</button>
       </div>
     </div>
 
@@ -264,6 +281,14 @@
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>
             <span class="btn-label">Code</span>
           </button>
+          <div class="persona-wrap" id="persona-wrap">
+            <button class="itb-btn persona-btn" id="persona-btn" onclick="togglePersonaPicker()" title="AI Persona">
+              <span id="persona-icon">⚡</span>
+              <span class="btn-label" id="persona-label">Assistant</span>
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="9" height="9" style="margin-left:1px;opacity:.6"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+            </button>
+            <div class="persona-dropdown" id="persona-dropdown"></div>
+          </div>
           <div class="itb-spacer"></div>
           <span class="char-count" id="char-count">0 / 2000</span>
         </div>
@@ -391,6 +416,7 @@
       <div class="shortcut-row"><span class="shortcut-desc">Open settings</span><div class="shortcut-keys"><kbd>Ctrl</kbd><kbd>,</kbd></div></div>
       <div class="shortcut-row"><span class="shortcut-desc">Keyboard shortcuts</span><div class="shortcut-keys"><kbd>Ctrl</kbd><kbd>/</kbd></div></div>
       <div class="shortcut-row"><span class="shortcut-desc">Rename conversation</span><div class="shortcut-keys"><kbd>Double-click</kbd> title</div></div>
+      <div class="shortcut-row"><span class="shortcut-desc">Focus mode</span><div class="shortcut-keys"><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>F</kbd></div></div>
     </div>
   </div>
 </div>
@@ -459,6 +485,108 @@
   </div>
 </div>
 
+<!-- PROFILE MODAL -->
+<div class="modal-bg" id="profile-modal" onclick="if(event.target.id==='profile-modal')closeModalId('profile-modal')">
+  <div class="modal profile-modal-inner">
+    <div class="modal-head">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18" style="color:var(--accent2)"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+      <span class="modal-title">My Profile</span>
+      <button class="modal-close" onclick="closeModalId('profile-modal')"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+    </div>
+    <div class="modal-body profile-body">
+
+      <!-- Hero: avatar + identity -->
+      <div class="prof-hero">
+        <div class="prof-avatar-xl" id="prof-avatar-xl">?</div>
+        <div class="prof-identity">
+          <div class="prof-disp-name" id="prof-disp-name">Loading…</div>
+          <div class="prof-email-disp" id="prof-email-disp"></div>
+          <div class="prof-badges">
+            <span class="prof-member-badge" id="prof-member-badge">–</span>
+            <span class="u-plan-badge" id="prof-plan-badge" style="display:none"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stats strip -->
+      <div class="prof-stats-strip">
+        <div class="prof-stat-item">
+          <div class="prof-stat-val" id="prof-streak-val">0</div>
+          <div class="prof-stat-lbl">Day streak 🔥</div>
+        </div>
+        <div class="prof-stat-sep"></div>
+        <div class="prof-stat-item">
+          <div class="prof-stat-val" id="prof-msgs-val">—</div>
+          <div class="prof-stat-lbl">Messages</div>
+        </div>
+        <div class="prof-stat-sep"></div>
+        <div class="prof-stat-item">
+          <div class="prof-stat-val" id="prof-convs-val">—</div>
+          <div class="prof-stat-lbl">Conversations</div>
+        </div>
+        <div class="prof-stat-sep"></div>
+        <div class="prof-stat-item">
+          <div class="prof-stat-val" id="prof-bms-val">—</div>
+          <div class="prof-stat-lbl">Bookmarks</div>
+        </div>
+      </div>
+
+      <!-- Edit form -->
+      <div class="prof-section">
+        <div class="prof-section-title">Personal Info</div>
+        <div class="prof-field-row">
+          <div class="prof-field">
+            <label class="prof-label">Display Name</label>
+            <input class="ainput" type="text" id="prof-name-inp" maxlength="60" placeholder="Your name"/>
+          </div>
+          <div class="prof-field">
+            <label class="prof-label">Location</label>
+            <input class="ainput" type="text" id="prof-loc-inp" maxlength="80" placeholder="City, Country"/>
+          </div>
+        </div>
+        <div class="prof-field">
+          <label class="prof-label">Bio</label>
+          <textarea class="ainput prof-bio-ta" id="prof-bio-inp" maxlength="200" rows="2" placeholder="A short bio about yourself…"></textarea>
+        </div>
+        <div class="prof-save-row">
+          <span class="prof-save-status" id="prof-save-status"></span>
+          <button class="abtn prof-save-btn" id="prof-save-btn" onclick="saveProfile()">Save Changes</button>
+        </div>
+      </div>
+
+      <!-- Account info -->
+      <div class="prof-section">
+        <div class="prof-section-title">Account</div>
+        <div class="prof-readonly-row">
+          <span class="prof-ro-label">Email</span>
+          <span class="prof-ro-val" id="prof-email-ro">–</span>
+        </div>
+        <div class="prof-readonly-row">
+          <span class="prof-ro-label">User ID</span>
+          <span class="prof-ro-val prof-uid" id="prof-uid-ro">–</span>
+        </div>
+        <div class="prof-readonly-row">
+          <span class="prof-ro-label">Current Plan</span>
+          <span class="prof-ro-val" id="prof-plan-ro">Free</span>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="prof-actions-row">
+        <button class="prof-upgrade-btn" id="prof-upgrade-btn" onclick="closeModalId('profile-modal');openPlans()" style="display:none">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="13" height="13"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+          Upgrade Plan
+        </button>
+        <button class="prof-signout-btn" onclick="doSignOut();closeModalId('profile-modal')">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="13" height="13"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+          Sign Out
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
 <!-- FULLSCREEN CODE MODAL -->
 <div class="modal-bg" id="fullscreen-modal" onclick="closeFullscreenModal(event)">
   <div class="modal fs-modal">
@@ -488,10 +616,11 @@
       <span class="modal-title">Plans &amp; Billing</span>
       <button class="modal-close" onclick="closeModalId('pricing-modal')"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
     </div>
-    <div class="modal-body">
-      <p class="pricing-sub">Unlock more with a premium plan. Cancel anytime — no hidden fees.</p>
-      <div class="billing-toggle">
-        <span class="billing-label billing-active">Monthly</span>
+    <div class="modal-body pricing-body">
+
+      <div class="pricing-headline">
+        <div class="pricing-eyebrow">Simple, transparent pricing</div>
+        <p class="pricing-sub">Start free. Upgrade as you grow. Cancel anytime.</p>
       </div>
 
       <div class="plans-grid">
@@ -501,51 +630,55 @@
           <span class="plan-current-badge" id="badge-free" style="display:none">Current Plan</span>
           <div class="plan-header">
             <div class="plan-icon plan-icon-free">
-              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="20" height="20"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3l14 9-14 9V3z"/></svg>
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3l14 9-14 9V3z"/></svg>
             </div>
             <div>
               <div class="plan-name">Free</div>
-              <div class="plan-tagline">Get started for free</div>
+              <div class="plan-tagline">Try it out</div>
             </div>
           </div>
-          <div class="plan-price">
+          <div class="plan-price-block">
             <span class="price-amount">$0</span>
-            <span class="price-period">/ month</span>
+            <div class="price-right"><span class="price-period">per month</span><span class="price-desc">forever free</span></div>
           </div>
           <ul class="plan-features">
-            <li><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>10 messages per day</li>
-            <li><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>Standard AI responses</li>
-            <li><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>Conversation history</li>
-            <li><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>All 4 themes</li>
-            <li><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>Voice input</li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="13" height="13"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg><span>10 messages per day</span></li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="13" height="13"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg><span>Standard AI responses</span></li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="13" height="13"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg><span>Chat history &amp; bookmarks</span></li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="13" height="13"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg><span>4 themes + focus mode</span></li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="13" height="13"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg><span>Voice input</span></li>
           </ul>
           <button class="plan-cta plan-cta-free" id="cta-free" onclick="buyPlan('free')">Current Plan</button>
         </div>
 
-        <!-- PLUS -->
-        <div class="plan-card plan-card-popular" id="plan-card-plus">
-          <span class="plan-popular-badge">Most Popular</span>
+        <!-- PLUS (featured) -->
+        <div class="plan-card plan-card-featured" id="plan-card-plus">
+          <div class="plan-popular-glow"></div>
+          <span class="plan-popular-badge">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="10" height="10"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3l14 9-14 9V3z"/></svg>
+            Most Popular
+          </span>
           <span class="plan-current-badge" id="badge-plus" style="display:none">Current Plan</span>
           <div class="plan-header">
             <div class="plan-icon plan-icon-plus">
-              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="20" height="20"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
             </div>
             <div>
               <div class="plan-name">Plus</div>
               <div class="plan-tagline">For power users</div>
             </div>
           </div>
-          <div class="plan-price">
+          <div class="plan-price-block">
             <span class="price-amount">$20</span>
-            <span class="price-period">/ month</span>
+            <div class="price-right"><span class="price-period">per month</span><span class="price-desc">billed monthly</span></div>
           </div>
           <ul class="plan-features">
-            <li><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>Unlimited messages</li>
-            <li><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>Priority AI responses</li>
-            <li><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>Code mode &amp; export</li>
-            <li><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>Bookmarks &amp; sharing</li>
-            <li><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>Custom instructions</li>
-            <li><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>Usage analytics</li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="13" height="13"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg><span>Unlimited messages</span></li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="13" height="13"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg><span>Priority AI responses</span></li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="13" height="13"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg><span>AI personas (5 modes)</span></li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="13" height="13"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg><span>Code mode, export &amp; sharing</span></li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="13" height="13"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg><span>Custom AI instructions</span></li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="13" height="13"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg><span>Usage analytics &amp; profile</span></li>
           </ul>
           <button class="plan-cta plan-cta-plus" id="cta-plus" data-plan="plus" onclick="buyPlan('plus')">Upgrade to Plus</button>
         </div>
@@ -555,33 +688,59 @@
           <span class="plan-current-badge" id="badge-pro" style="display:none">Current Plan</span>
           <div class="plan-header">
             <div class="plan-icon plan-icon-pro">
-              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="20" height="20"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/></svg>
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/></svg>
             </div>
             <div>
               <div class="plan-name">Pro</div>
               <div class="plan-tagline">Maximum capability</div>
             </div>
           </div>
-          <div class="plan-price">
+          <div class="plan-price-block">
             <span class="price-amount">$200</span>
-            <span class="price-period">/ month</span>
+            <div class="price-right"><span class="price-period">per month</span><span class="price-desc">enterprise-grade</span></div>
           </div>
           <ul class="plan-features">
-            <li><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>Everything in Plus</li>
-            <li><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>Extended response length</li>
-            <li><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>Dedicated processing queue</li>
-            <li><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>Advanced usage insights</li>
-            <li><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>Early access to new models</li>
-            <li><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>Priority email support</li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="13" height="13"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg><span>Everything in Plus</span></li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="13" height="13"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg><span>Extended response length</span></li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="13" height="13"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg><span>Dedicated processing queue</span></li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="13" height="13"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg><span>Advanced usage insights</span></li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="13" height="13"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg><span>Early access to new models</span></li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="13" height="13"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg><span>Priority email support</span></li>
           </ul>
           <button class="plan-cta plan-cta-pro" id="cta-pro" data-plan="pro" onclick="buyPlan('pro')">Upgrade to Pro</button>
         </div>
 
-      </div><!-- /plans-grid -->
+      </div>
+
+      <!-- Comparison table -->
+      <div class="compare-table">
+        <div class="compare-title">Compare plans</div>
+        <table>
+          <thead><tr><th>Feature</th><th>Free</th><th>Plus</th><th>Pro</th></tr></thead>
+          <tbody>
+            <tr><td>Messages / day</td><td>10</td><td>Unlimited</td><td>Unlimited</td></tr>
+            <tr><td>AI Personas</td><td>—</td><td>5 modes</td><td>5 modes</td></tr>
+            <tr><td>Custom Instructions</td><td>—</td><td>✓</td><td>✓</td></tr>
+            <tr><td>Code Export</td><td>—</td><td>✓</td><td>✓</td></tr>
+            <tr><td>Response Length</td><td>Standard</td><td>Extended</td><td>Maximum</td></tr>
+            <tr><td>Processing Priority</td><td>Standard</td><td>High</td><td>Dedicated</td></tr>
+            <tr><td>Support</td><td>Community</td><td>Email</td><td>Priority Email</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- FAQ -->
+      <div class="pricing-faq">
+        <div class="compare-title">Frequently asked questions</div>
+        <details class="faq-item"><summary>Can I cancel at any time?</summary><p>Yes — cancel anytime from your Stripe customer portal. You keep access until the end of the billing period.</p></details>
+        <details class="faq-item"><summary>What payment methods are accepted?</summary><p>All major credit cards, debit cards, and Apple/Google Pay via Stripe's secure checkout.</p></details>
+        <details class="faq-item"><summary>Is this really in test mode?</summary><p>Yes — this project uses Stripe test mode. No real charges are made. Use card 4242&nbsp;4242&nbsp;4242&nbsp;4242 with any future date and any CVC.</p></details>
+        <details class="faq-item"><summary>What happens if I hit the free message limit?</summary><p>You'll see a prompt to upgrade. Your conversation history is always saved and accessible after upgrading.</p></details>
+      </div>
 
       <div class="pricing-footer-note">
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="13" height="13"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
-        Secured by Stripe. Cancel anytime from your account settings.
+        Payments secured by Stripe. No credit card required for the free plan.
       </div>
 
     </div>
