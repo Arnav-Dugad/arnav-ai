@@ -1324,10 +1324,20 @@ async function loadSubscription(){
 function _applyPlanUI(plan){
   _currentPlan=plan;
   const badge=$('u-plan-badge');
-  if(!badge)return;
-  if(plan==='plus'){badge.textContent='⚡ Plus';badge.className='u-plan-badge plus';badge.style.display='';}
-  else if(plan==='pro'){badge.textContent='👑 Pro';badge.className='u-plan-badge pro';badge.style.display='';}
-  else{badge.style.display='none';}
+  if(badge){
+    if(plan==='plus'){badge.textContent='⚡ Plus';badge.className='u-plan-badge plus';badge.style.display='';}
+    else if(plan==='pro'){badge.textContent='👑 Pro';badge.className='u-plan-badge pro';badge.style.display='';}
+    else{badge.style.display='none';}
+  }
+  const upBtn=$('upgrade-topbar-btn');
+  if(upBtn)upBtn.style.display=(plan==='free')?'':'none';
+}
+
+function _showCheckoutOverlay(){
+  const o=$('checkout-overlay');if(o)o.style.display='flex';
+}
+function _hideCheckoutOverlay(){
+  const o=$('checkout-overlay');if(o)o.style.display='none';
 }
 
 function openPlans(){
@@ -1377,29 +1387,45 @@ async function buyPlan(planId){
   if(cta){cta.disabled=true;cta.textContent='Redirecting…';}
 
   try{
-    if(!window._auth?.currentUser)throw new Error('Not signed in');
-    const tok=await window._auth.currentUser.getIdToken();
+    const user=window._auth?.currentUser;
+    if(!user)throw new Error('Not signed in');
+    const tok=await user.getIdToken();
     const base=_backendUrl();
-    const origin=window.location.origin||'';
-    const successUrl=origin+window.location.pathname+'?payment=success&plan='+planId;
-    const cancelUrl =origin+window.location.pathname+'?payment=cancelled';
+    const origin=window.location.origin||window.location.href.replace(/[^/]*$/,'');
+    const path=window.location.pathname||'/';
+    const successUrl=origin+path+'?payment=success&plan='+planId;
+    const cancelUrl =origin+path+'?payment=cancelled';
 
-    const res=await fetch(base+'/create-checkout-session',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},
-      body:JSON.stringify({plan:planId,success_url:successUrl,cancel_url:cancelUrl})
-    });
+    let res;
+    try{
+      res=await fetch(base+'/create-checkout-session',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},
+        body:JSON.stringify({
+          plan:planId,
+          success_url:successUrl,
+          cancel_url:cancelUrl,
+          user_email:user.email||'',
+          uid:user.uid||'',
+        })
+      });
+    }catch(fetchErr){
+      throw new Error('Cannot reach payment server. Make sure server.js is running (npm install && node server.js).');
+    }
 
     if(!res.ok){
-      const err=await res.json().catch(()=>({}));
-      throw new Error(err.detail||'Server error '+res.status);
+      const errBody=await res.json().catch(()=>({}));
+      throw new Error(errBody.detail||'Server error '+res.status);
     }
     const data=await res.json();
-    if(data.url){window.location.href=data.url;}
-    else throw new Error('No checkout URL returned');
+    if(data.url){
+      _showCheckoutOverlay();
+      window.location.href=data.url;
+    }else throw new Error('No checkout URL returned');
   }catch(err){
-    toast('Checkout error: '+err.message,'err',4000);
+    toast(err.message,'err',6000);
     if(cta){cta.disabled=false;cta.textContent=origText;}
+    _hideCheckoutOverlay();
   }
 }
 
