@@ -511,6 +511,7 @@ function clearDraft(){
 
 // ── chat sessions ──
 let sessions={},currentChatId=null,msgs=[],busy=false,chatTitle='',codeMode=false,stopRequested=false;
+let webSearchMode=false; // tracks web search toggle
 function genId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
 
 function newChat(){
@@ -551,9 +552,9 @@ function loadChat(id){
 
 // ── input mode toggles ──
 function toggleWebMode(){
-  $('btn-web').classList.toggle('on');
-  const on=$('btn-web').classList.contains('on');
-  toast(on?'Web search enabled':'Web search off','info');
+  webSearchMode=!webSearchMode;
+  $('btn-web').classList.toggle('on',webSearchMode);
+  toast(webSearchMode?'🌐 Web search enabled':'Web search off','info');
 }
 function toggleCodeMode(){
   codeMode=!codeMode;
@@ -925,6 +926,8 @@ async function sendMsg(){
   }
   msgs.push({role:'user',content:text});
   appendUserBubble(text,msgs.length-1);
+  // Save to sessions IMMEDIATELY so the chat is navigable while generating
+  sessions[currentChatId]={msgs:[...msgs],title:chatTitle};
   updateStats(isNew);
   _incDailyCount();renderDailyBar();
   await callAPI(text,true);
@@ -1042,7 +1045,7 @@ async function callAPI(text,isNew){
     const res=await fetch(window.API_URL,{
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},
-      body:JSON.stringify({messages:msgsToSend})
+      body:JSON.stringify({messages:msgsToSend,web_search:webSearchMode})
     });
 
     // Hide typing only if we're still on this chat
@@ -1496,6 +1499,9 @@ async function buyPlan(planId){
 }
 
 async function _verifyAndSaveSession(sessionId,planHint){
+  // Clean planHint — strip anything after ? or & (URL parsing artefact from old double-? bug)
+  const cleanPlan=(planHint||'').split('?')[0].split('&')[0].trim().toLowerCase();
+
   if(sessionId){
     try{
       const tok=await window._auth.currentUser.getIdToken();
@@ -1509,10 +1515,10 @@ async function _verifyAndSaveSession(sessionId,planHint){
       }
     }catch(e){}
   }
-  // Fallback: trust URL plan param
-  if(planHint==='plus'||planHint==='pro'){
-    await _persistSubscription(planHint,'','');
-    return planHint;
+  // Fallback: trust cleaned plan hint
+  if(cleanPlan==='plus'||cleanPlan==='pro'){
+    await _persistSubscription(cleanPlan,'','');
+    return cleanPlan;
   }
   return null;
 }
@@ -1695,82 +1701,92 @@ function _updateStreak(){
 }
 
 function openProfile(){
-  closeUserMenu();
+  // Close menu first (outside try so menu closes regardless)
+  try{closeUserMenu();}catch(e){}
+
+  const u=_fbUser||window._auth?.currentUser;
+  if(!u){toast('Please sign in to view your profile','err');return;}
+
+  // Local safe text-setter — avoids dependency on external _set
+  const st=(id,val)=>{
+    try{
+      const el=document.getElementById(id);
+      if(el)el.textContent=(val===null||val===undefined)?'':String(val);
+    }catch(e){}
+  };
+
   try{
-    const u=_fbUser||window._auth?.currentUser;
-    if(!u){toast('Please sign in to view your profile','err');return;}
-    const n=u.displayName||u.email.split('@')[0];
-    const grad=_avatarGradient(n);
-    const inits=_initials(n);
+    const name=u.displayName||u.email.split('@')[0];
 
     // Avatar
-    const av=$('prof-avatar-xl');
-    if(av){av.textContent=inits;av.style.background=grad;}
-
-    // Identity
-    _set('prof-disp-name',n);
-    _set('prof-email-disp',u.email);
-
-    // Member since
-    const mb=$('prof-member-badge');
-    if(mb){
-      try{
-        const ct=u.metadata?.creationTime;
-        if(ct){
-          const d=new Date(ct);
-          mb.textContent='Member since '+d.toLocaleDateString('en-US',{month:'short',year:'numeric'});
-        }
-      }catch(e){}
+    const avEl=document.getElementById('prof-avatar-xl');
+    if(avEl){
+      avEl.textContent=_initials(name);
+      avEl.style.background=_avatarGradient(name);
     }
 
+    st('prof-disp-name',name);
+    st('prof-email-disp',u.email);
+
+    // Member since
+    try{
+      const ct=(u.metadata||{}).creationTime;
+      if(ct){
+        const d=new Date(ct);
+        st('prof-member-badge','Member since '+d.toLocaleDateString('en-US',{month:'short',year:'numeric'}));
+      }
+    }catch(e){st('prof-member-badge','');}
+
     // Plan badge
-    const pb=$('prof-plan-badge');
+    const pb=document.getElementById('prof-plan-badge');
     if(pb){
       if(_currentPlan==='plus'){pb.textContent='⚡ Plus';pb.className='u-plan-badge plus';pb.style.display='';}
       else if(_currentPlan==='pro'){pb.textContent='👑 Pro';pb.className='u-plan-badge pro';pb.style.display='';}
-      else pb.style.display='none';
+      else{pb.style.display='none';}
     }
-    _set('prof-plan-ro',{free:'Free',plus:'Plus ⚡',pro:'Pro 👑'}[_currentPlan]||'Free');
+    st('prof-plan-ro',{free:'Free',plus:'Plus ⚡',pro:'Pro 👑'}[_currentPlan]||'Free');
 
     // Upgrade button
-    const ub=$('prof-upgrade-btn');
-    if(ub)ub.style.display=_currentPlan==='free'?'':'none';
+    const ubEl=document.getElementById('prof-upgrade-btn');
+    if(ubEl)ubEl.style.display=(_currentPlan==='free')?'':'none';
 
     // Form fields
-    const ni=$('prof-name-inp');if(ni)ni.value=_userProfile.displayName||n;
-    const bi=$('prof-bio-inp');if(bi)bi.value=_userProfile.bio||'';
-    const li=$('prof-loc-inp');if(li)li.value=_userProfile.location||'';
+    const niEl=document.getElementById('prof-name-inp');if(niEl)niEl.value=(_userProfile.displayName)||name;
+    const biEl=document.getElementById('prof-bio-inp');if(biEl)biEl.value=(_userProfile.bio)||'';
+    const liEl=document.getElementById('prof-loc-inp');if(liEl)liEl.value=(_userProfile.location)||'';
 
     // Account
-    _set('prof-email-ro',u.email);
-    _set('prof-uid-ro',u.uid);
+    st('prof-email-ro',u.email);
+    st('prof-uid-ro',u.uid);
 
     // Stats
-    _set('prof-streak-val',(_userProfile.streak||0)+'🔥');
-    _set('prof-bms-val',bookmarks.length);
-    _set('prof-convs-val',allHistory.length>0?allHistory.length:'—');
-    _set('prof-msgs-val','—');
+    st('prof-streak-val',((_userProfile.streak)||0)+' 🔥');
+    st('prof-bms-val',bookmarks.length);
+    st('prof-convs-val',allHistory.length>0?allHistory.length:'—');
+    st('prof-msgs-val','—');
 
     // Clear save status
-    const ss=$('prof-save-status');if(ss)ss.textContent='';
+    const ssEl=document.getElementById('prof-save-status');
+    if(ssEl)ssEl.textContent='';
 
-    // Firestore stats (non-blocking)
+    // Open the modal
+    const modal=document.getElementById('profile-modal');
+    if(!modal){toast('Profile modal not found — reload the page','err');return;}
+    modal.classList.add('on');
+
+    // Fetch Firestore stats async (non-blocking — fills in after modal opens)
     if(currentUserId&&window._db){
       window._fsGetDoc(window._fsDoc(window._db,'users',currentUserId,'stats')).then(snap=>{
-        if(snap.exists()){
+        if(snap&&snap.exists()){
           const d=snap.data();
-          if(d.totalMessages!=null)_set('prof-msgs-val',d.totalMessages);
-          if(d.totalConversations!=null)_set('prof-convs-val',d.totalConversations);
+          if(d.totalMessages!=null)st('prof-msgs-val',d.totalMessages);
+          if(d.totalConversations!=null)st('prof-convs-val',d.totalConversations);
         }
       }).catch(()=>{});
     }
-
-    const modal=$('profile-modal');
-    if(modal)modal.classList.add('on');
-    else toast('Profile modal not found','err');
   }catch(err){
-    toast('Could not open profile','err');
-    console.error('openProfile error:',err);
+    toast('Profile error: '+err.message,'err',5000);
+    console.error('[openProfile]',err);
   }
 }
 
@@ -1892,7 +1908,7 @@ document.addEventListener('click',e=>{
 // ══════════════════════════════════════
 // DAILY MESSAGE LIMIT (free tier)
 // ══════════════════════════════════════
-const FREE_MSG_LIMIT=10;
+const FREE_MSG_LIMIT=30;
 
 function _dailyKey(){return'arnav-daily-'+new Date().toISOString().slice(0,10);}
 
