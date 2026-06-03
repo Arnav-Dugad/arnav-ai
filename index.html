@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
 <title>Arnav AI</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
@@ -42,9 +42,9 @@
   --top:      52px;
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
-html{overflow-x:hidden;}
-html{height:100%;-webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent;}
-body{height:100%;background:var(--bg);color:var(--text);font-family:var(--sans);font-size:15px;line-height:1.65;overflow:hidden;-webkit-font-smoothing:antialiased;-webkit-overflow-scrolling:touch;}
+html,body{max-width:100%;overflow-x:hidden;}
+html{height:100%;-webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent;overflow-x:hidden;}
+body{height:100%;width:100%;max-width:100vw;background:var(--bg);color:var(--text);font-family:var(--sans);font-size:15px;line-height:1.65;overflow:hidden;overflow-x:hidden;-webkit-font-smoothing:antialiased;-webkit-overflow-scrolling:touch;}
 
 /* scrollbars */
 ::-webkit-scrollbar{width:3px;height:3px;}
@@ -76,7 +76,7 @@ body{height:100%;background:var(--bg);color:var(--text);font-family:var(--sans);
   border:1px solid var(--border2);
   border-radius:var(--r3);
   padding:42px 38px;
-  width:100%;max-width:408px;
+  width:calc(100% - 32px);max-width:408px;
   backdrop-filter:blur(24px);
   -webkit-backdrop-filter:blur(24px);
   box-shadow:0 0 0 1px rgba(255,255,255,.03),0 32px 80px rgba(0,0,0,.6),0 0 80px rgba(107,94,248,.06);
@@ -147,7 +147,7 @@ body{height:100%;background:var(--bg);color:var(--text);font-family:var(--sans);
 /* ══════════════════════════════════
    CHAT LAYOUT
 ══════════════════════════════════ */
-#chat-page{flex-direction:row;align-items:stretch;z-index:1;background:var(--bg);}
+#chat-page{flex-direction:row;align-items:stretch;z-index:1;background:var(--bg);width:100%;max-width:100vw;overflow:hidden;}
 
 /* sidebar */
 .sidebar{
@@ -238,7 +238,7 @@ body{height:100%;background:var(--bg);color:var(--text);font-family:var(--sans);
 .u-mi svg{width:14px;height:14px;flex-shrink:0;}
 
 /* ── MAIN ── */
-.main{flex:1;min-width:0;height:100vh;display:flex;flex-direction:column;background:var(--bg);}
+.main{flex:1;min-width:0;width:0;height:100vh;display:flex;flex-direction:column;background:var(--bg);overflow:hidden;}
 
 /* topbar */
 .topbar{
@@ -374,7 +374,7 @@ body{height:100%;background:var(--bg);color:var(--text);font-family:var(--sans);
 .day-sep::before,.day-sep::after{content:'';flex:1;height:1px;background:var(--border);}
 
 /* ── INPUT AREA ── */
-.input-area{padding:10px 16px 14px;flex-shrink:0;}
+.input-area{padding:10px 16px 14px;padding-bottom:max(14px,env(safe-area-inset-bottom));flex-shrink:0;}
 .input-outer{max-width:760px;margin:0 auto;}
 
 /* top action bar */
@@ -428,33 +428,99 @@ body{height:100%;background:var(--bg);color:var(--text);font-family:var(--sans);
 kbd{background:var(--bg3);border:1px solid var(--border2);border-radius:4px;padding:1px 5px;font-family:var(--mono);font-size:10px;color:var(--text2);}
 
 
+/* ══════════════════════════════════
+   NEW FEATURES CSS
+══════════════════════════════════ */
+
 /* ── MIC BUTTON ── */
-.mic-btn{width:34px;height:34px;border-radius:9px;background:var(--bg3);border:1px solid var(--border2);color:var(--text2);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .2s;}
+.mic-btn{
+  width:34px;height:34px;border-radius:9px;
+  background:var(--bg3);border:1px solid var(--border2);
+  color:var(--text2);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;transition:all .2s;
+  -webkit-tap-highlight-color:transparent;
+}
 .mic-btn:hover{background:var(--bg2);color:var(--text);border-color:var(--border3);}
-.mic-btn.on{background:rgba(224,107,107,.15);border-color:rgba(224,107,107,.4);color:var(--danger);animation:micpulse 1s infinite;}
-@keyframes micpulse{0%,100%{box-shadow:0 0 0 0 rgba(224,107,107,.35)}50%{box-shadow:0 0 0 5px rgba(224,107,107,0)}}
+.mic-btn.on{
+  background:rgba(224,107,107,.15);
+  border-color:rgba(224,107,107,.5);
+  color:var(--danger);
+  animation:micpulse 1s ease-in-out infinite;
+}
+@keyframes micpulse{
+  0%,100%{box-shadow:0 0 0 0 rgba(224,107,107,.4);}
+  50%{box-shadow:0 0 0 6px rgba(224,107,107,0);}
+}
 .mic-btn svg{width:14px;height:14px;}
-.input-box.listening{border-color:var(--danger)!important;box-shadow:0 0 0 3px rgba(224,107,107,.18)!important;animation:listenring 1.2s ease-in-out infinite;}
-@keyframes listenring{0%,100%{box-shadow:0 0 0 3px rgba(224,107,107,.18)}50%{box-shadow:0 0 0 6px rgba(224,107,107,.06)}}
+.input-box.listening{
+  border-color:var(--danger)!important;
+  box-shadow:0 0 0 3px rgba(224,107,107,.2)!important;
+}
 
-/* ── TTS BUTTON STATES ── */
-.act-btn.speaking{color:var(--accent2)!important;border-color:rgba(107,94,248,.35)!important;background:var(--glow2)!important;}
+/* ── SPEAKING BUTTON STATE ── */
+.act-btn.speaking{
+  color:var(--accent2)!important;
+  border-color:rgba(107,94,248,.4)!important;
+  background:var(--glow2)!important;
+}
 
-/* ── WEB BADGE ── */
-.web-badge{background:rgba(78,203,138,.1);border:1px solid rgba(78,203,138,.22);border-radius:20px;padding:1px 7px;font-size:10px;color:var(--success);font-family:var(--mono);}
+/* ── WEB SEARCH BADGE ── */
+.web-badge{
+  display:inline-flex;align-items:center;gap:3px;
+  background:rgba(78,203,138,.1);
+  border:1px solid rgba(78,203,138,.25);
+  border-radius:20px;padding:1px 8px;
+  font-size:10px;color:var(--success);
+  font-family:var(--mono);
+}
 
 /* ── SHARE MODAL ── */
-.share-preview{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:12px 14px;margin-bottom:14px;max-height:160px;overflow-y:auto;}
-.share-preview-title{font-size:12px;font-weight:600;color:var(--text);margin-bottom:7px;}
-.share-msg-row{margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--border);font-size:12px;color:var(--text2);line-height:1.55;}
+.share-preview{
+  background:var(--bg3);border:1px solid var(--border);
+  border-radius:var(--r);padding:12px 14px;
+  margin-bottom:14px;max-height:150px;overflow-y:auto;
+}
+.share-preview-title{font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;}
+.share-msg-row{font-size:12px;color:var(--text2);line-height:1.5;margin-bottom:7px;padding-bottom:7px;border-bottom:1px solid var(--border);}
 .share-msg-row:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0;}
-.share-msg-row strong{color:var(--text);font-weight:600;}
+.share-msg-row b{color:var(--text);}
 .share-btns{display:flex;gap:8px;flex-wrap:wrap;}
-.share-btn{flex:1;min-width:100px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r);color:var(--text2);font-family:var(--sans);font-size:13px;padding:10px 12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:all .2s;}
+.share-btn{
+  flex:1;min-width:90px;
+  background:var(--bg3);border:1px solid var(--border2);
+  border-radius:var(--r);color:var(--text2);
+  font-family:var(--sans);font-size:13px;
+  padding:10px 12px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:6px;
+  transition:all .2s;
+}
 .share-btn:hover{background:var(--bg2);color:var(--text);border-color:var(--border3);}
 .share-btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:0 2px 12px rgba(107,94,248,.3);}
-.share-btn.primary:hover{background:#7d72f9;box-shadow:0 4px 18px rgba(107,94,248,.4);}
+.share-btn.primary:hover{background:#7d72f9;}
 .share-btn svg{width:13px;height:13px;flex-shrink:0;}
+
+/* ── THEME PICKER ── */
+.theme-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:4px;}
+.theme-swatch{
+  aspect-ratio:1;border-radius:10px;cursor:pointer;
+  border:2px solid transparent;transition:all .2s;
+  position:relative;overflow:hidden;
+}
+.theme-swatch.active{border-color:var(--accent2);}
+.theme-swatch:hover{transform:scale(1.05);}
+.theme-swatch::after{content:attr(data-name);position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,.6);font-size:9px;color:#fff;text-align:center;padding:2px 0;}
+
+/* ── FONT SIZE CONTROL ── */
+.font-control{display:flex;align-items:center;gap:8px;}
+.font-btn{width:28px;height:28px;border-radius:6px;background:var(--bg3);border:1px solid var(--border2);color:var(--text);font-family:var(--sans);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;}
+.font-btn:hover{background:var(--bg2);}
+.font-size-val{font-size:12px;color:var(--text2);font-family:var(--mono);min-width:30px;text-align:center;}
+
+/* ── CHAR COUNTER ── */
+.char-count{font-size:11px;color:var(--text3);font-family:var(--mono);}
+.char-count.warn{color:var(--warn);}
+.char-count.over{color:var(--danger);font-weight:600;}
 
 /* ── TOASTS ── */
 .toasts{position:fixed;bottom:18px;right:16px;z-index:999;display:flex;flex-direction:column;gap:7px;pointer-events:none;max-width:300px;}
@@ -498,32 +564,70 @@ kbd{background:var(--bg3);border:1px solid var(--border2);border-radius:4px;padd
 
 /* ── MOBILE ── */
 @media(max-width:720px){
-  .sidebar{position:fixed;top:0;bottom:0;left:0;transform:translateX(-100%);box-shadow:none;}
-  .sidebar.open{transform:translateX(0);box-shadow:4px 0 32px rgba(0,0,0,.5);}
-  .main{width:100%;min-width:0;}
+  /* Sidebar: full-height overlay, hidden by default */
+  .sidebar{
+    position:fixed;top:0;bottom:0;left:0;
+    width:min(260px,80vw);min-width:0;
+    transform:translateX(-100%);
+    box-shadow:none;
+    z-index:50;
+  }
+  .sidebar.open{
+    transform:translateX(0);
+    box-shadow:4px 0 40px rgba(0,0,0,.6);
+  }
+  /* Main fills full width */
+  .main{width:100vw;max-width:100vw;min-width:0;}
   .sb-close{display:flex;}
-  .auth-card{padding:28px 18px;margin:10px;border-radius:16px;width:calc(100% - 20px);}
-  .chips-grid{grid-template-columns:1fr;}
-  .msgs-inner{padding:12px 10px 8px;}
-  .input-area{padding:6px 8px 10px;padding-bottom:calc(10px + env(safe-area-inset-bottom));}
-  .input-outer{max-width:100%;}
+  /* Auth card fits screen */
+  #auth-page{padding:0 12px;align-items:center;}
+  .auth-card{
+    width:100%;
+    max-width:100%;
+    padding:28px 20px;
+    margin:0;
+    border-radius:16px;
+  }
+  /* Messages */
+  .msgs-inner{padding:12px 10px 6px;}
+  .msgs-area{-webkit-overflow-scrolling:touch;}
+  /* Input area — safe insets */
+  .input-area{
+    padding:6px 10px;
+    padding-bottom:max(10px,env(safe-area-inset-bottom));
+  }
+  .input-outer{max-width:100%;width:100%;}
+  .input-box{border-radius:12px;}
+  /* Prevent iOS zoom on input focus */
+  #cinput{font-size:16px!important;}
+  .ainput{font-size:16px!important;}
+  /* Bubbles */
   .user-bubble{max-width:85%;}
-  .input-topbar{display:none;}
+  /* Top bar compact */
   .topbar{padding:0 8px;gap:6px;}
-  .tb-title{font-size:12px;}
-  .model-btn{display:none;}
+  .tb-title{font-size:12px;min-width:0;}
+  /* Hide decorative elements on mobile */
+  .input-topbar{display:none;}
   .model-selector{display:none;}
-  .msg-ai,.msg-user{padding:2px 0;}
+  .input-footer{display:none;}
+  /* Chips single column */
+  .chips-grid{grid-template-columns:1fr;}
+  /* Empty state compact */
+  .empty-state{padding:20px 12px;}
+  .empty-title{font-size:20px;}
+  /* Action buttons smaller */
   .ai-actions{gap:4px;}
   .act-btn{font-size:10px;padding:3px 7px;}
-  .msgs-area{-webkit-overflow-scrolling:touch;}
-  .input-box{border-radius:12px;}
-  #cinput{font-size:16px;} /* prevents iOS zoom */
+  /* Toasts — avoid edge */
+  .toasts{right:10px;left:10px;max-width:100%;}
 }
+
 @media(max-width:380px){
-  .auth-card{padding:24px 14px;margin:8px;width:calc(100% - 16px);}
-  .auth-title{font-size:21px;}
+  .auth-card{padding:24px 16px;}
+  .auth-title{font-size:20px;}
   .alogo-name{font-size:17px;}
+  .topbar{gap:4px;}
+  .tb-btn{padding:4px;}
 }
 </style>
 </head>
@@ -665,8 +769,8 @@ kbd{background:var(--bg3);border:1px solid var(--border2);border-radius:4px;padd
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
       </button>
       <span class="tb-title" id="tb-title">New conversation</span>
-      <button class="tb-btn" onclick="openShare()" title="Share conversation" style="flex-shrink:0">
-        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
+      <button class="tb-btn" id="share-topbar-btn" onclick="openShare()" title="Share">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="17" height="17"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
       </button>
       <div class="model-selector">
         <div class="model-btn" id="model-btn">
@@ -726,7 +830,7 @@ kbd{background:var(--bg3);border:1px solid var(--border2);border-radius:4px;padd
         <div class="input-box" id="input-box">
           <div class="input-row">
             <textarea id="cinput" placeholder="Message Arnav AI…" rows="1" oninput="onInput(this)" onkeydown="onKey(event)"></textarea>
-            <button class="mic-btn" id="mic-btn" onclick="toggleVoiceInput()" title="Voice input (click to speak)">
+            <button class="mic-btn" id="mic-btn" onclick="toggleVoice()" title="Voice input">
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 016 0v6a3 3 0 01-3 3z"/></svg>
             </button>
             <button class="send-btn" id="send-btn" onclick="sendMsg()" disabled>
@@ -757,8 +861,17 @@ kbd{background:var(--bg3);border:1px solid var(--border2);border-radius:4px;padd
     <div class="modal-body">
       <div class="setting-row">
         <div class="setting-icon"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072M12 6a7 7 0 010 12M8.464 8.464a5 5 0 000 7.072"/></svg></div>
-        <div class="setting-info"><div class="setting-label">Read answers aloud</div><div class="setting-desc">Auto-speak AI responses in American English</div></div>
+        <div class="setting-info"><div class="setting-label">Read answers aloud</div><div class="setting-desc">Auto-speak AI responses (American English)</div></div>
         <div class="toggle" id="tog-tts" onclick="toggleSetting('tts')"></div>
+      </div>
+      <div class="setting-row">
+        <div class="setting-icon"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h7"/></svg></div>
+        <div class="setting-info"><div class="setting-label">Font size</div><div class="setting-desc">Adjust chat text size</div></div>
+        <div class="font-control">
+          <button class="font-btn" onclick="changeFontSize(-1)">−</button>
+          <span class="font-size-val" id="font-size-val">15</span>
+          <button class="font-btn" onclick="changeFontSize(1)">+</button>
+        </div>
       </div>
       <div class="setting-row">
         <div class="setting-icon"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg></div>
@@ -804,17 +917,17 @@ kbd{background:var(--bg3);border:1px solid var(--border2);border-radius:4px;padd
 </div>
 
 <!-- SHARE MODAL -->
-<div class="modal-bg" id="share-modal" onclick="if(event.target===this)closeModalId('share-modal')">
+<div class="modal-bg" id="share-modal" onclick="if(event.target.id==='share-modal')closeModalId('share-modal')">
   <div class="modal">
     <div class="modal-head">
-      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18" style="color:var(--accent2);flex-shrink:0"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="17" height="17" style="color:var(--accent2);flex-shrink:0"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
       <span class="modal-title">Share Conversation</span>
       <button class="modal-close" onclick="closeModalId('share-modal')"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
     </div>
     <div class="modal-body">
       <div class="share-preview">
-        <div class="share-preview-title">Conversation preview</div>
-        <div id="share-msgs"></div>
+        <div class="share-preview-title">Preview</div>
+        <div id="share-msgs-preview"></div>
       </div>
       <div class="share-btns">
         <button class="share-btn primary" onclick="doShare('copy')">
@@ -864,11 +977,11 @@ window.API_URL=MODEL_API_URL;
 window.MODEL=MODEL_NAME;
 document.getElementById('model-name').textContent=MODEL_NAME;
 
-// Fallback: show login page if Firebase takes >3s
-const _fbTimer = setTimeout(() => onLogout(), 3000);
+// 3-second fallback in case Firebase is slow
+const _fbFb = setTimeout(()=>onLogout(), 3000);
 onAuthStateChanged(auth, u => {
-  clearTimeout(_fbTimer);
-  if(u){ onLogin(u); } else { onLogout(); }
+  clearTimeout(_fbFb);
+  u ? onLogin(u) : onLogout();
 });
 </script>
 
@@ -941,6 +1054,7 @@ function onLogin(u){
   $('u-avatar').textContent=n.slice(0,2).toUpperCase();
   $('u-name').textContent=n;$('u-email').textContent=u.email;
   if(window.innerWidth<=720)closeSb();else openSb();
+  setTimeout(showWelcome,700);
 }
 
 // ── tab switch ──
@@ -1218,7 +1332,7 @@ function appendAIBubble(text, webUsed){
   const e=$('empty-state');if(e)e.remove();
   const d=document.createElement('div');d.className='msg msg-ai';
   const wb=webUsed?'<span class="web-badge">🌐 web</span>':'';
-  const mid='tts'+Date.now();
+  const mid='tts'+Date.now()+Math.random().toString(36).slice(2,5);
   d.innerHTML=`<div class="ai-ava"><svg viewBox="0 0 20 20" fill="none"><path d="M10 2L12.2 7.5H18L13.5 10.8L15.3 16.5L10 13.2L4.7 16.5L6.5 10.8L2 7.5H7.8L10 2Z" fill="white"/></svg></div>
   <div class="ai-body-wrap">
     <div class="ai-meta">
@@ -1306,7 +1420,7 @@ async function callAPI(text,isNew){
     // save session
     sessions[currentChatId]={msgs:[...msgs],title:chatTitle};
     const webUsed=data.web_search_used||false;
-    appendAIBubble(reply, webUsed);
+    appendAIBubble(reply,webUsed);
     if(settings.sound)playChime();
     if(settings.tts)autoSpeak(reply);
   }catch(err){
@@ -1332,28 +1446,34 @@ function playChime(){
   }catch(e){}
 }
 
-// ── init ──
-loadHistory();
-$('cinput').addEventListener('input',function(){$('send-btn').disabled=!this.value.trim();});
 
-// welcome toast after login delay
-setTimeout(()=>{
-  if($('chat-page')&&!$('chat-page').classList.contains('hidden')&&window._auth?.currentUser){
-    const n=window._auth.currentUser.displayName||window._auth.currentUser.email.split('@')[0];
-    toast('Welcome back, '+n+' 👋','ok',3000);
-  }
-},800);
+// ══════════════════════════════════════
+// FONT SIZE CONTROL
+// ══════════════════════════════════════
+let fontSize=parseInt(localStorage.getItem('arnav-fontsize')||'15');
+function applyFontSize(){
+  document.documentElement.style.setProperty('--chat-font',fontSize+'px');
+  document.querySelectorAll('.ai-body,.user-bubble').forEach(el=>el.style.fontSize=fontSize+'px');
+  const el=$('font-size-val');if(el)el.textContent=fontSize;
+  localStorage.setItem('arnav-fontsize',fontSize);
+}
+function changeFontSize(delta){
+  fontSize=Math.max(12,Math.min(20,fontSize+delta));
+  applyFontSize();
+}
+// Apply on load
+applyFontSize();
 
-// ════════════════════════════════════
+// ══════════════════════════════════════
 // VOICE INPUT — American English STT
-// ════════════════════════════════════
-let _recog=null, _voiceOn=false;
+// ══════════════════════════════════════
+let _recog=null,_voiceOn=false;
 
-function toggleVoiceInput(){
+function toggleVoice(){
   if(!('SpeechRecognition' in window||'webkitSpeechRecognition' in window)){
-    toast('Voice input needs Chrome or Edge browser','err'); return;
+    toast('Voice input requires Chrome or Edge','err'); return;
   }
-  if(_voiceOn){ _stopVoice(); return; }
+  if(_voiceOn){ _killVoice(); return; }
   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
   _recog=new SR();
   _recog.lang='en-US';
@@ -1365,15 +1485,13 @@ function toggleVoiceInput(){
     $('mic-btn').classList.add('on');
     $('input-box').classList.add('listening');
     $('cinput').placeholder='Listening… speak now 🎤';
-    toast('🎤 Listening — speak your message','info',6000);
+    toast('🎤 Listening — speak clearly','info',8000);
   };
   _recog.onresult=ev=>{
-    let interim='',final='';
-    for(let i=ev.resultIndex;i<ev.results.length;i++){
-      if(ev.results[i].isFinal) final+=ev.results[i][0].transcript;
-      else interim+=ev.results[i][0].transcript;
-    }
-    $('cinput').value=(final||interim).trim();
+    let txt='';
+    for(let i=ev.resultIndex;i<ev.results.length;i++)
+      txt+=ev.results[i][0].transcript;
+    $('cinput').value=txt.trim();
     onInput($('cinput'));
   };
   _recog.onend=()=>{
@@ -1381,45 +1499,45 @@ function toggleVoiceInput(){
     $('mic-btn').classList.remove('on');
     $('input-box').classList.remove('listening');
     $('cinput').placeholder='Message Arnav AI…';
-    if($('cinput').value.trim()) toast('Got it! Press Enter to send ✓','ok');
+    if($('cinput').value.trim()) toast('Voice captured — press Enter to send','ok');
   };
   _recog.onerror=ev=>{
     _voiceOn=false; _recog=null;
     $('mic-btn').classList.remove('on');
     $('input-box').classList.remove('listening');
     $('cinput').placeholder='Message Arnav AI…';
-    const skip=['no-speech','aborted'];
-    if(!skip.includes(ev.error)) toast('Voice error: '+ev.error,'err');
+    if(ev.error!=='no-speech'&&ev.error!=='aborted')
+      toast('Mic error: '+ev.error,'err');
   };
-  _recog.start();
+  try{ _recog.start(); } catch(e){ toast('Could not start mic','err'); }
 }
-function _stopVoice(){ if(_recog){_recog.abort();_recog=null;} }
+function _killVoice(){ try{ if(_recog){_recog.abort();_recog=null;} }catch(e){} }
 
-// ════════════════════════════════════
+// ══════════════════════════════════════
 // VOICE OUTPUT — American English TTS
-// (correctly stops when button pressed)
-// ════════════════════════════════════
-let _ttsBtn=null;
+// (properly stops on second click)
+// ══════════════════════════════════════
+let _ttsBtn=null;  // the button currently speaking
 
 function _getUSVoice(){
   const vs=window.speechSynthesis.getVoices();
-  // Strict priority list for American English
-  const checks=[
+  // Strict US English priority
+  const prio=[
     v=>v.name==='Google US English',
     v=>v.name==='Microsoft Zira - English (United States)',
     v=>v.name==='Microsoft Mark - English (United States)',
     v=>v.name==='Microsoft David - English (United States)',
-    v=>v.name==='Samantha'&&v.lang==='en-US',
-    v=>v.lang==='en-US'&&v.localService===false,
+    v=>v.voiceURI&&v.voiceURI.includes('en_US'),
+    v=>v.lang==='en-US'&&!v.localService,
     v=>v.lang==='en-US',
-    v=>v.lang.startsWith('en-'),
+    v=>v.lang.startsWith('en-US'),
     v=>v.lang.startsWith('en'),
   ];
-  for(const c of checks){const v=vs.find(c);if(v)return v;}
+  for(const p of prio){ const v=vs.find(p); if(v)return v; }
   return vs[0]||null;
 }
 
-function _resetTtsBtn(){
+function _clearTtsBtn(){
   if(_ttsBtn){
     _ttsBtn.classList.remove('speaking');
     _ttsBtn.innerHTML='<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072M12 6a7 7 0 010 12M8.464 8.464a5 5 0 000 7.072"/></svg>Read aloud';
@@ -1428,91 +1546,100 @@ function _resetTtsBtn(){
 }
 
 function speakMsg(mid, btn){
-  // Toggle: if this btn is already speaking, stop it
+  // Clicking same button while speaking = STOP
   if(_ttsBtn===btn){
     window.speechSynthesis.cancel();
-    _resetTtsBtn();
+    _clearTtsBtn();
     return;
   }
-  // Stop any ongoing speech + reset previous button
+  // Stop any existing speech
   window.speechSynthesis.cancel();
-  _resetTtsBtn();
+  _clearTtsBtn();
   const el=document.getElementById(mid);
   if(!el) return;
-  _doSpeak(el.innerText, btn);
+  _startTts(el.innerText, btn);
 }
 
 function autoSpeak(text){
   window.speechSynthesis.cancel();
-  _resetTtsBtn();
-  _doSpeak(text, null);
+  _clearTtsBtn();
+  _startTts(text, null);
 }
 
-function _doSpeak(rawText, btn){
+function _startTts(rawText, btn){
   if(!window.speechSynthesis) return;
-  // Strip markdown/symbols for cleaner audio
+  // Clean text: remove markdown, code blocks, emojis for cleaner audio
   const clean=rawText
-    .replace(/```[\s\S]*?```/g,' code block. ')
-    .replace(/`[^`]+`/g,'')
-    .replace(/[#*_~\[\]]/g,'')
+    .replace(/```[\s\S]*?```/g,' ')
+    .replace(/`[^`]+`/g,' ')
+    .replace(/#{1,6}\s/g,'')
+    .replace(/\*{1,3}([^*]+)\*{1,3}/g,'$1')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g,'$1')
+    .replace(/[🌐⚠️✅❌💡🔍✍️🧠🎤]/g,'')
     .replace(/\s+/g,' ')
     .trim()
     .slice(0,3000);
+
+  if(!clean) return;
   const utt=new SpeechSynthesisUtterance(clean);
   utt.lang='en-US';
-  utt.rate=0.95;
+  utt.rate=0.92;
   utt.pitch=1.0;
   utt.volume=1.0;
-  const _start=()=>{
+
+  const _go=()=>{
     const v=_getUSVoice();
     if(v) utt.voice=v;
     if(btn){
       _ttsBtn=btn;
       btn.classList.add('speaking');
-      btn.innerHTML='<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>Stop';
+      btn.innerHTML='<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>Stop reading';
     }
-    utt.onend=()=>{ _resetTtsBtn(); };
-    utt.onerror=()=>{ _resetTtsBtn(); };
+    utt.onend=()=>{ _clearTtsBtn(); };
+    utt.onerror=()=>{ _clearTtsBtn(); };
     window.speechSynthesis.speak(utt);
   };
-  // Chrome needs voices loaded first
-  if(window.speechSynthesis.getVoices().length>0){ _start(); }
-  else{ window.speechSynthesis.onvoiceschanged=()=>{ window.speechSynthesis.onvoiceschanged=null; _start(); }; }
+
+  // Chrome loads voices async
+  const voices=window.speechSynthesis.getVoices();
+  if(voices.length>0){ _go(); }
+  else{ window.speechSynthesis.onvoiceschanged=()=>{ window.speechSynthesis.onvoiceschanged=null; _go(); }; }
 }
 
-// ════════════════════════════════════
+// ══════════════════════════════════════
 // SHARE CONVERSATION
-// ════════════════════════════════════
+// ══════════════════════════════════════
 function openShare(){
-  if(!msgs.length){ toast('No messages to share yet','info'); return; }
-  const c=$('share-msgs');
-  c.innerHTML=msgs.slice(0,10).map(m=>{
-    const who=m.role==='user'?'<strong>You</strong>':'<strong>Arnav AI</strong>';
-    const txt=esc(m.content.slice(0,150))+(m.content.length>150?'…':'');
-    return `<div class="share-msg-row">${who}: ${txt}</div>`;
-  }).join('');
+  if(!msgs||!msgs.length){ toast('No messages yet — start a conversation first','info'); return; }
+  const c=$('share-msgs-preview');
+  if(c){
+    c.innerHTML=msgs.slice(0,8).map(m=>{
+      const who=m.role==='user'?'<b>You</b>':'<b>Arnav AI</b>';
+      return `<div class="share-msg-row">${who}: ${esc(m.content.slice(0,120))}${m.content.length>120?'…':''}</div>`;
+    }).join('');
+  }
   $('share-modal').classList.add('on');
 }
 
-function _buildShareText(){
+function _shareText(){
   const dt=new Date().toLocaleString('en-US',{dateStyle:'medium',timeStyle:'short'});
-  let t=`${chatTitle||'Arnav AI Conversation'}\nExported from Arnav AI · ${dt}\n${'─'.repeat(48)}\n\n`;
-  msgs.forEach(m=>{ t+=`${m.role==='user'?'You':'Arnav AI'}: ${m.content}\n\n`; });
+  let t=`${chatTitle||'Arnav AI Conversation'}\nExported · ${dt}\n${'─'.repeat(50)}\n\n`;
+  (msgs||[]).forEach(m=>{ t+=`${m.role==='user'?'You':'Arnav AI'}: ${m.content}\n\n`; });
   return t;
 }
 
 function doShare(type){
-  const text=_buildShareText();
+  const text=_shareText();
   if(type==='copy'){
     navigator.clipboard.writeText(text)
       .then(()=>{ toast('Copied to clipboard!','ok'); closeModalId('share-modal'); })
-      .catch(()=>toast('Copy failed — try download','err'));
+      .catch(()=>toast('Copy failed — try download instead','err'));
   } else if(type==='download'){
-    const blob=new Blob([text],{type:'text/plain;charset=utf-8'});
-    const url=URL.createObjectURL(blob);
+    const b=new Blob([text],{type:'text/plain;charset=utf-8'});
+    const url=URL.createObjectURL(b);
     const a=document.createElement('a');
     a.href=url;
-    a.download=((chatTitle||'conversation').replace(/[^a-z0-9]/gi,'-').toLowerCase().slice(0,40)||'chat')+'.txt';
+    a.download=((chatTitle||'chat').replace(/[^a-z0-9]/gi,'-').toLowerCase().slice(0,40)||'arnav-ai-chat')+'.txt';
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     URL.revokeObjectURL(url);
     toast('Downloaded!','ok'); closeModalId('share-modal');
@@ -1520,32 +1647,46 @@ function doShare(type){
     if(navigator.share){
       navigator.share({title:chatTitle||'Arnav AI Chat',text}).catch(()=>{});
     } else {
-      navigator.clipboard.writeText(text).then(()=>toast('Copied! Native share not available on desktop','info'));
+      navigator.clipboard.writeText(text).then(()=>toast('Copied (native share unavailable)','info'));
     }
     closeModalId('share-modal');
   }
 }
 
-// Share keyboard shortcut Ctrl+Shift+S
-document.addEventListener('keydown',ev=>{
+// Ctrl+Shift+S → share
+document.addEventListener('keydown',function(ev){
   if(ev.target.tagName==='INPUT'||ev.target.tagName==='TEXTAREA') return;
-  if((ev.ctrlKey||ev.metaKey)&&ev.shiftKey&&(ev.key==='S'||ev.key==='s')){
+  if((ev.ctrlKey||ev.metaKey)&&ev.shiftKey&&(ev.key==='s'||ev.key==='S')){
     ev.preventDefault(); openShare();
   }
 });
 
-// Preload TTS voices on page load (Chrome needs this)
-if(window.speechSynthesis){
-  window.speechSynthesis.getVoices();
-  // Chrome fires this event when voices are ready
-  if(window.speechSynthesis.onvoiceschanged!==undefined){
-    window.speechSynthesis.onvoiceschanged=()=>{
-      window.speechSynthesis.getVoices(); // cache them
-      window.speechSynthesis.onvoiceschanged=null;
-    };
+// ══════════════════════════════════════
+// WELCOME TOAST (fix: only shows when logged in)
+// ══════════════════════════════════════
+function showWelcome(){
+  if(window._auth&&window._auth.currentUser){
+    const n=window._auth.currentUser.displayName||window._auth.currentUser.email.split('@')[0];
+    toast('Welcome back, '+n+' 👋','ok',3000);
   }
 }
 
+// ══════════════════════════════════════
+// PRELOAD TTS VOICES (Chrome needs this)
+// ══════════════════════════════════════
+if(window.speechSynthesis){
+  window.speechSynthesis.getVoices();
+  window.speechSynthesis.onvoiceschanged=()=>{
+    window.speechSynthesis.getVoices();
+    window.speechSynthesis.onvoiceschanged=null;
+  };
+}
+
+// ── init ──
+loadHistory();
+$('cinput').addEventListener('input',function(){$('send-btn').disabled=!this.value.trim();});
+
+// welcome toast — called from onLogin()
 </script>
 </body>
 </html>
