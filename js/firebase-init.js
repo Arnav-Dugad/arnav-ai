@@ -13,9 +13,14 @@ const firebaseConfig = {
 };
 
 const MODEL_API_URL  = "https://arnavdug-arnav-ai.hf.space/chat";
-const BACKEND_BASE   = "https://arnavdug-arnav-ai.hf.space";
 const MODEL_NAME     = "Arnav AI";
 const STRIPE_PK      = "pk_test_51TeJPqRM4RXOuINwROniWawUvZ9UgsldZD5t9cv2mMUdQfUpOph49nKnQsNe8SZ1NfQXY02N2RInJt8SDtUe7gZb00uN3FWd1W";
+
+// Stripe server: local when developing, HuggingFace in production
+const _isLocal = ['localhost','127.0.0.1',''].includes(window.location.hostname);
+const BACKEND_BASE = _isLocal
+  ? 'http://localhost:3001'
+  : 'https://arnavdug-arnav-ai.hf.space';
 
 const fb   = initializeApp(firebaseConfig);
 const auth = getAuth(fb);
