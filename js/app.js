@@ -3,6 +3,9 @@
 ════════════════════════════════════════════ */
 const $=id=>document.getElementById(id);
 
+// Current Firebase user — stored on login for reliable access
+let _fbUser=null;
+
 // ══════════════════════════════════════
 // SPLASH SCREEN — hides after auth resolves
 // ══════════════════════════════════════
@@ -162,6 +165,7 @@ function onLogin(u){
   $('u-avatar').textContent=n.slice(0,2).toUpperCase();
   $('u-name').textContent=n;$('u-email').textContent=u.email;
   if(window.innerWidth<=720)closeSb();else openSb();
+  _fbUser=u;
   currentUserId=u.uid;sessionStart=Date.now();
   // Clear any stale chat UI from a previous session
   msgs=[];chatTitle='';currentChatId=genId();busy=false;
@@ -227,6 +231,7 @@ async function doGoogle(){
 async function doSignOut(){
   try{
     await window._fbOut(window._auth);
+    _fbUser=null;
     currentUserId=null;sessionStart=null;
     allHistory=[];sessions={};msgs=[];currentChatId=null;chatTitle='';
     bookmarks=[];bookmarksSet=new Set();
@@ -509,7 +514,7 @@ let sessions={},currentChatId=null,msgs=[],busy=false,chatTitle='',codeMode=fals
 function genId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
 
 function newChat(){
-  if(busy){toast('Please wait for the response to finish','info');return;}
+  // Allow new chat even while generating — ongoing generation saves silently
   closeConvSearch();
   currentChatId=genId();msgs=[];chatTitle='';
   // Clear any leftover input (don't persist draft from prior chat)
@@ -929,6 +934,7 @@ async function sendMsg(){
 // STREAMING TYPEWRITER
 // ══════════════════════════════════════
 let _twInterval=null,_twOnDone=null,_twFullText='';
+let _twMsgIdx=-1,_twChatId=null; // captured per-stream to survive chat switches
 
 function _createStreamBubble(webUsed,msgIndex,elapsed){
   const e=$('empty-state');if(e)e.remove();
@@ -966,7 +972,9 @@ function _finishTypewriter(fullText,bodyEl,bubbleDiv,msgIndex){
   if(!bodyEl.classList.contains('streaming'))return; // guard against double-call
   bodyEl.classList.remove('streaming');
   const mid=bodyEl.id;
-  const bmKey=(currentChatId&&msgIndex!==undefined)?currentChatId+'-'+msgIndex:'';
+  // Use _twChatId (captured when stream started) — currentChatId may have changed
+  const _resolvedChatId=_twChatId||currentChatId;
+  const bmKey=(_resolvedChatId&&msgIndex!==undefined)?_resolvedChatId+'-'+msgIndex:'';
   const isBm=bmKey?bookmarksSet.has(bmKey):false;
   const wc=wordCount(fullText);
   // Replace plain text with formatted markdown
@@ -984,7 +992,7 @@ function _finishTypewriter(fullText,bodyEl,bubbleDiv,msgIndex){
     actDiv.innerHTML=`<button class="act-btn" onclick="copyText(this)"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>Copy</button>
       <button class="act-btn" id="spk${mid}" onclick="speakMsg('${mid}',this)"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072M12 6a7 7 0 010 12M8.464 8.464a5 5 0 000 7.072"/></svg>Read aloud</button>
       <button class="act-btn" onclick="regenLast()"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>Regenerate</button>
-      <button class="act-btn${isBm?' bookmarked':''}" data-bm-key="${bmKey}" onclick="toggleBookmark('${currentChatId}',${msgIndex},document.getElementById('${mid}').innerText,this)">${bmBtnHtml(isBm)}</button>
+      <button class="act-btn${isBm?' bookmarked':''}" data-bm-key="${bmKey}" onclick="toggleBookmark('${_resolvedChatId}',${msgIndex},document.getElementById('${mid}').innerText,this)">${bmBtnHtml(isBm)}</button>
       <div class="rate-group">
         <button class="act-btn rate-btn" onclick="rateMsg(1,this)" title="Helpful"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5"/></svg></button>
         <button class="act-btn rate-btn" onclick="rateMsg(-1,this)" title="Not helpful"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14H5.236a2 2 0 01-1.789-2.894l3.5-7A2 2 0 018.736 3h4.018a2 2 0 01.485.06l3.76.94m-7 10v5a2 2 0 002 2h.096c.5 0 .905-.405.905-.904 0-.715.211-1.413.608-2.008L17 13V4m-7 10h2m5-10h2a2 2 0 012 2v6a2 2 0 01-2 2h-2.5"/></svg></button>
@@ -1003,7 +1011,7 @@ function _skipTypewriter(){
   const el=document.querySelector('.ai-body.streaming');
   if(el){
     const bubbleDiv=el.closest('.msg');
-    _finishTypewriter(_twFullText,el,bubbleDiv,msgs.length-1);
+    _finishTypewriter(_twFullText,el,bubbleDiv,_twMsgIdx);
   }
   $('stop-btn').onclick=stopGen;
 }
@@ -1011,51 +1019,94 @@ function _skipTypewriter(){
 async function callAPI(text,isNew){
   busy=true;stopRequested=false;
   $('send-btn').disabled=true;$('stop-btn').classList.add('on');
-  _setGenerating(true);showTyping();
+  _setGenerating(true);
+
+  // ─── Capture chat context at call time.
+  // User may switch chats during the async fetch — these closures keep
+  // the response anchored to the correct chat without blocking navigation.
+  const _cId   = currentChatId;  // chat this response belongs to
+  const _cMsgs = msgs;            // reference — survives reassignment of global `msgs`
+  const _cTitle = chatTitle;
+  const _onThisChat=()=>currentChatId===_cId;
+
+  if(_onThisChat())showTyping();
+
   const _t0=Date.now();
   let _streamStarted=false;
+
   try{
     const tok=await window._auth.currentUser.getIdToken();
     const _combinedSys=_buildSystemPrompt();
-    const msgsToSend=_combinedSys?[{role:'system',content:_combinedSys},...msgs]:msgs;
+    const msgsToSend=_combinedSys?[{role:'system',content:_combinedSys},..._cMsgs]:_cMsgs;
+
     const res=await fetch(window.API_URL,{
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},
       body:JSON.stringify({messages:msgsToSend})
     });
-    hideTyping();
-    if(stopRequested){busy=false;$('stop-btn').classList.remove('on');$('send-btn').disabled=false;_setGenerating(false);return;}
+
+    // Hide typing only if we're still on this chat
+    if(_onThisChat())hideTyping();
+
+    if(stopRequested){
+      busy=false;$('stop-btn').classList.remove('on');
+      $('send-btn').disabled=!$('cinput').value.trim();
+      _setGenerating(false);
+      return;
+    }
     if(!res.ok)throw new Error('API error '+res.status);
+
     const data=await res.json();
     const reply=data.response||data.generated_text||data.choices?.[0]?.message?.content||data.text||'(no response)';
     const elapsed=((Date.now()-_t0)/1000).toFixed(1);
-    msgs.push({role:'assistant',content:reply});
-    sessions[currentChatId]={msgs:[...msgs],title:chatTitle};
-    saveConversation(currentChatId,false);
-    // Start streaming typewriter — busy stays true until onDone fires
-    _streamStarted=true;
-    const sb=_createStreamBubble(data.web_search_used||false,msgs.length-1,elapsed);
-    $('msgs-inner').appendChild(sb.div);
-    scrollDown();
-    $('stop-btn').onclick=_skipTypewriter; // override stop during streaming
-    _startTypewriter(reply,sb.bodyEl,sb.div,msgs.length-1,()=>{
-      $('stop-btn').onclick=stopGen; // restore
-      if(settings.sound)playChime();
-      if(settings.tts)autoSpeak(reply);
-      _notifyResponse();
+
+    // Always persist the reply to the correct chat regardless of which chat is visible
+    _cMsgs.push({role:'assistant',content:reply});
+    sessions[_cId]={msgs:[..._cMsgs],title:sessions[_cId]?.title||_cTitle};
+    saveConversation(_cId,false);
+
+    if(_onThisChat()){
+      // User is still on this chat — stream the reply into the DOM
+      _streamStarted=true;
+      _twMsgIdx=_cMsgs.length-1;
+      _twChatId=_cId;
+      const sb=_createStreamBubble(data.web_search_used||false,_cMsgs.length-1,elapsed);
+      $('msgs-inner').appendChild(sb.div);
+      scrollDown();
+      $('stop-btn').onclick=_skipTypewriter;
+      _startTypewriter(reply,sb.bodyEl,sb.div,_cMsgs.length-1,()=>{
+        $('stop-btn').onclick=stopGen;
+        if(settings.sound)playChime();
+        if(settings.tts)autoSpeak(reply);
+        _notifyResponse();
+        busy=false;
+        $('stop-btn').classList.remove('on');
+        $('send-btn').disabled=!$('cinput').value.trim();
+        _setGenerating(false);
+      });
+    }else{
+      // User switched to a different chat — response saved silently, notify them
+      const _savedTitle=sessions[_cId]?.title||_cTitle||'Previous chat';
+      toast(`💬 Response ready in "${_savedTitle}"  — click to view`,'ok',6000);
       busy=false;
       $('stop-btn').classList.remove('on');
       $('send-btn').disabled=!$('cinput').value.trim();
       _setGenerating(false);
-    });
+    }
   }catch(err){
-    hideTyping();
-    appendAIBubble('⚠️ Could not reach the model.\n\n`'+err.message+'`\n\nCheck your HuggingFace Space is running.');
+    if(_onThisChat()){
+      hideTyping();
+      appendAIBubble('⚠️ Could not reach the model.\n\n`'+err.message+'`\n\nCheck your HuggingFace Space is running.');
+    }
     toast('Connection error — check your Space','err');
+    busy=false;$('stop-btn').classList.remove('on');
+    $('send-btn').disabled=!$('cinput').value.trim();
+    _setGenerating(false);
   }
-  // Only clean up if streaming didn't start (error path or pre-stream stopRequested)
-  if(!_streamStarted){
-    busy=false;$('stop-btn').classList.remove('on');$('send-btn').disabled=!$('cinput').value.trim();
+
+  if(!_streamStarted&&busy){
+    busy=false;$('stop-btn').classList.remove('on');
+    $('send-btn').disabled=!$('cinput').value.trim();
     _setGenerating(false);
   }
 }
@@ -1483,7 +1534,6 @@ async function _handleStripeRedirect(){
   const params=new URLSearchParams(window.location.search);
   const payment=params.get('payment');
   if(!payment)return;
-  // Clean up URL immediately
   window.history.replaceState({},'',window.location.pathname);
 
   if(payment==='success'){
@@ -1493,14 +1543,106 @@ async function _handleStripeRedirect(){
     if(activePlan){
       _applyPlanUI(activePlan);
       _syncPlanCards();
-      const label=activePlan==='plus'?'Plus ⚡':'Pro 👑';
-      setTimeout(()=>toast('🎉 Welcome to Arnav AI '+label+'!','ok',5000),800);
+      setTimeout(()=>showPaymentSuccess(activePlan),500);
     }else{
       toast('Payment received — subscription activating…','ok',4000);
     }
   }else if(payment==='cancelled'){
     setTimeout(()=>toast('Payment cancelled','info',3000),400);
   }
+}
+
+// ══════════════════════════════════════
+// PAYMENT SUCCESS OVERLAY
+// ══════════════════════════════════════
+const _PSO_MESSAGES={
+  plus:{
+    headline:"You're on Plus now! ⚡",
+    message:"Unlimited messages, AI personas, and all the good stuff — unlocked.",
+    perks:["Unlimited messages — no more daily limit","5 AI personas (Professor, Coder, Creative…)","Priority responses & extended answers","Full usage analytics & profile stats"],
+    sub:"Welcome to the premium squad. We knew you had good taste. 😎"
+  },
+  pro:{
+    headline:"Welcome to Pro! 👑",
+    message:"You just went full power mode. Arnav AI is entirely yours.",
+    perks:["Everything in Plus, dialled up to max","Dedicated processing queue — you're first","Extended response length & early model access","Priority email support from the team"],
+    sub:"Royalty treatment, activated. We're honoured. 🎩"
+  }
+};
+
+function showPaymentSuccess(plan){
+  const cfg=_PSO_MESSAGES[plan]||_PSO_MESSAGES.plus;
+
+  _set('pso-headline',cfg.headline);
+  _set('pso-message',cfg.message);
+  _set('pso-sub',cfg.sub);
+
+  const perksEl=$('pso-perks');
+  if(perksEl){
+    perksEl.innerHTML=cfg.perks.map((p,i)=>`
+      <div class="pso-perk" style="animation-delay:${0.7+i*0.1}s">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+        ${p}
+      </div>`).join('');
+  }
+
+  const overlay=$('pso-overlay');
+  if(overlay)overlay.style.display='flex';
+
+  // Shoot confetti
+  _launchConfetti();
+
+  // Auto-close after 12 seconds
+  setTimeout(closePso,12000);
+}
+
+function closePso(){
+  const overlay=$('pso-overlay');
+  if(!overlay||overlay.style.display==='none')return;
+  overlay.style.opacity='0';
+  overlay.style.transition='opacity .4s';
+  setTimeout(()=>{overlay.style.display='none';overlay.style.opacity='';overlay.style.transition='';},420);
+}
+
+function _launchConfetti(){
+  const wrap=$('pso-confetti-wrap');
+  if(!wrap)return;
+  wrap.innerHTML='';
+  const colors=['#6b5ef8','#9d94ff','#4ecb8a','#fa709a','#e0a832','#4facfe','#f093fb','#43e97b','#fee140','#f5576c'];
+  const count=70;
+  for(let i=0;i<count;i++){
+    const el=document.createElement('div');
+    el.className='pso-confetti-piece';
+    const size=Math.random()*8+5;
+    el.style.cssText=`
+      left:${Math.random()*100}%;
+      width:${size}px;
+      height:${size}px;
+      background:${colors[Math.floor(Math.random()*colors.length)]};
+      border-radius:${Math.random()>.5?'50%':'2px'};
+      animation-duration:${2.5+Math.random()*2.5}s;
+      animation-delay:${Math.random()*1.2}s;
+      transform:rotate(${Math.random()*360}deg);
+    `;
+    wrap.appendChild(el);
+  }
+  // Second wave
+  setTimeout(()=>{
+    for(let i=0;i<40;i++){
+      const el=document.createElement('div');
+      el.className='pso-confetti-piece';
+      const size=Math.random()*7+4;
+      el.style.cssText=`
+        left:${Math.random()*100}%;
+        width:${size}px;height:${size}px;
+        background:${colors[Math.floor(Math.random()*colors.length)]};
+        border-radius:${Math.random()>.5?'50%':'2px'};
+        animation-duration:${2+Math.random()*2}s;
+        animation-delay:${Math.random()*.8}s;
+      `;
+      wrap.appendChild(el);
+    }
+  },1200);
 }
 
 // ══════════════════════════════════════
@@ -1552,81 +1694,91 @@ function _updateStreak(){
     {lastActiveDate:today,streak},{merge:true}).catch(()=>{});
 }
 
-async function openProfile(){
+function openProfile(){
   closeUserMenu();
-  const u=window._auth?.currentUser;if(!u)return;
-  const n=u.displayName||u.email.split('@')[0];
-  const grad=_avatarGradient(n);
-  const inits=_initials(n);
+  try{
+    const u=_fbUser||window._auth?.currentUser;
+    if(!u){toast('Please sign in to view your profile','err');return;}
+    const n=u.displayName||u.email.split('@')[0];
+    const grad=_avatarGradient(n);
+    const inits=_initials(n);
 
-  // Avatar
-  const av=$('prof-avatar-xl');
-  if(av){av.textContent=inits;av.style.background=grad;}
+    // Avatar
+    const av=$('prof-avatar-xl');
+    if(av){av.textContent=inits;av.style.background=grad;}
 
-  // Identity
-  _set('prof-disp-name',n);
-  _set('prof-email-disp',u.email);
+    // Identity
+    _set('prof-disp-name',n);
+    _set('prof-email-disp',u.email);
 
-  // Member since
-  const mb=$('prof-member-badge');
-  if(mb){
-    const ct=u.metadata?.creationTime;
-    if(ct){
-      const d=new Date(ct);
-      mb.textContent='Member since '+d.toLocaleDateString('en-US',{month:'short',year:'numeric'});
+    // Member since
+    const mb=$('prof-member-badge');
+    if(mb){
+      try{
+        const ct=u.metadata?.creationTime;
+        if(ct){
+          const d=new Date(ct);
+          mb.textContent='Member since '+d.toLocaleDateString('en-US',{month:'short',year:'numeric'});
+        }
+      }catch(e){}
     }
+
+    // Plan badge
+    const pb=$('prof-plan-badge');
+    if(pb){
+      if(_currentPlan==='plus'){pb.textContent='⚡ Plus';pb.className='u-plan-badge plus';pb.style.display='';}
+      else if(_currentPlan==='pro'){pb.textContent='👑 Pro';pb.className='u-plan-badge pro';pb.style.display='';}
+      else pb.style.display='none';
+    }
+    _set('prof-plan-ro',{free:'Free',plus:'Plus ⚡',pro:'Pro 👑'}[_currentPlan]||'Free');
+
+    // Upgrade button
+    const ub=$('prof-upgrade-btn');
+    if(ub)ub.style.display=_currentPlan==='free'?'':'none';
+
+    // Form fields
+    const ni=$('prof-name-inp');if(ni)ni.value=_userProfile.displayName||n;
+    const bi=$('prof-bio-inp');if(bi)bi.value=_userProfile.bio||'';
+    const li=$('prof-loc-inp');if(li)li.value=_userProfile.location||'';
+
+    // Account
+    _set('prof-email-ro',u.email);
+    _set('prof-uid-ro',u.uid);
+
+    // Stats
+    _set('prof-streak-val',(_userProfile.streak||0)+'🔥');
+    _set('prof-bms-val',bookmarks.length);
+    _set('prof-convs-val',allHistory.length>0?allHistory.length:'—');
+    _set('prof-msgs-val','—');
+
+    // Clear save status
+    const ss=$('prof-save-status');if(ss)ss.textContent='';
+
+    // Firestore stats (non-blocking)
+    if(currentUserId&&window._db){
+      window._fsGetDoc(window._fsDoc(window._db,'users',currentUserId,'stats')).then(snap=>{
+        if(snap.exists()){
+          const d=snap.data();
+          if(d.totalMessages!=null)_set('prof-msgs-val',d.totalMessages);
+          if(d.totalConversations!=null)_set('prof-convs-val',d.totalConversations);
+        }
+      }).catch(()=>{});
+    }
+
+    const modal=$('profile-modal');
+    if(modal)modal.classList.add('on');
+    else toast('Profile modal not found','err');
+  }catch(err){
+    toast('Could not open profile','err');
+    console.error('openProfile error:',err);
   }
-
-  // Plan badge in profile
-  const pb=$('prof-plan-badge');
-  if(pb){
-    if(_currentPlan==='plus'){pb.textContent='⚡ Plus';pb.className='u-plan-badge plus';pb.style.display='';}
-    else if(_currentPlan==='pro'){pb.textContent='👑 Pro';pb.className='u-plan-badge pro';pb.style.display='';}
-    else pb.style.display='none';
-  }
-  _set('prof-plan-ro',{free:'Free',plus:'Plus ⚡',pro:'Pro 👑'}[_currentPlan]||'Free');
-
-  // Upgrade button
-  const ub=$('prof-upgrade-btn');
-  if(ub)ub.style.display=_currentPlan==='free'?'':'none';
-
-  // Form fields
-  const ni=$('prof-name-inp');if(ni)ni.value=_userProfile.displayName||n;
-  const bi=$('prof-bio-inp');if(bi)bi.value=_userProfile.bio||'';
-  const li=$('prof-loc-inp');if(li)li.value=_userProfile.location||'';
-
-  // Account
-  _set('prof-email-ro',u.email);
-  _set('prof-uid-ro',u.uid);
-
-  // Stats
-  _set('prof-streak-val',_userProfile.streak||0);
-  _set('prof-bms-val',bookmarks.length);
-  _set('prof-convs-val',allHistory.length||'—');
-  _set('prof-msgs-val','—');
-
-  // Clear save status
-  const ss=$('prof-save-status');if(ss)ss.textContent='';
-
-  // Fetch Firestore stats
-  if(currentUserId&&window._db){
-    window._fsGetDoc(window._fsDoc(window._db,'users',currentUserId,'stats')).then(snap=>{
-      if(snap.exists()){
-        const d=snap.data();
-        if(d.totalMessages!=null)_set('prof-msgs-val',d.totalMessages);
-        if(d.totalConversations!=null)_set('prof-convs-val',d.totalConversations);
-      }
-    }).catch(()=>{});
-  }
-
-  $('profile-modal').classList.add('on');
 }
 
 // Small helper to set textContent safely
 function _set(id,val){const el=$(id);if(el)el.textContent=val??'';}
 
 async function saveProfile(){
-  const u=window._auth?.currentUser;if(!u)return;
+  const u=_fbUser||window._auth?.currentUser;if(!u)return;
   const btn=$('prof-save-btn'),ss=$('prof-save-status');
   if(btn){btn.disabled=true;btn.textContent='Saving…';}
 
