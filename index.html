@@ -629,6 +629,83 @@ kbd{background:var(--bg3);border:1px solid var(--border2);border-radius:4px;padd
   .topbar{gap:4px;}
   .tb-btn{padding:4px;}
 }
+
+/* ══════════════════════════════════
+   MESSAGE EDITING
+══════════════════════════════════ */
+.user-bubble{position:relative;display:flex;flex-direction:column;}
+.user-bubble-text{white-space:pre-wrap;word-break:break-word;}
+.user-edit-btn{
+  display:none;position:absolute;top:-8px;right:-8px;
+  background:var(--bg3);border:1px solid var(--border2);border-radius:6px;
+  color:var(--text2);cursor:pointer;padding:4px;transition:all .2s;
+  align-items:center;justify-content:center;
+}
+.msg-user:hover .user-edit-btn{display:flex;}
+.user-edit-btn:hover{background:var(--bg2);color:var(--text);border-color:var(--border3);}
+.user-edit-btn svg{width:12px;height:12px;}
+.user-bubble.editing{
+  background:transparent!important;border-color:transparent!important;
+  padding:0!important;max-width:85%;
+}
+.user-edit-textarea{
+  width:100%;min-width:240px;
+  background:var(--bg2);border:1px solid var(--accent);border-radius:var(--r2) var(--r2) 4px var(--r2);
+  color:var(--text);font-family:var(--sans);font-size:14px;line-height:1.65;
+  padding:11px 15px;resize:none;outline:none;
+  min-height:60px;max-height:200px;
+  box-shadow:0 0 0 3px var(--glow);
+}
+.user-edit-actions{display:flex;gap:6px;margin-top:6px;justify-content:flex-end;}
+.edit-cancel-btn,.edit-save-btn{
+  background:var(--bg3);border:1px solid var(--border2);border-radius:7px;
+  color:var(--text2);font-family:var(--sans);font-size:12px;padding:5px 12px;
+  cursor:pointer;transition:all .2s;
+}
+.edit-cancel-btn:hover{background:var(--bg2);color:var(--text);}
+.edit-save-btn{background:var(--accent);border-color:var(--accent);color:#fff;}
+.edit-save-btn:hover{background:#7d72f9;}
+
+/* ══════════════════════════════════
+   BOOKMARK BUTTON
+══════════════════════════════════ */
+.act-btn.bookmarked{
+  color:var(--warn)!important;
+  border-color:rgba(224,168,50,.35)!important;
+  background:rgba(224,168,50,.07)!important;
+}
+
+/* ══════════════════════════════════
+   STATS MODAL
+══════════════════════════════════ */
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:4px;}
+.stat-card{
+  background:var(--bg3);border:1px solid var(--border2);
+  border-radius:var(--r);padding:16px 14px;
+}
+.stat-icon{font-size:18px;margin-bottom:8px;line-height:1;}
+.stat-val{font-size:28px;font-weight:600;color:var(--text);line-height:1;}
+.stat-lbl{font-size:12px;color:var(--text2);margin-top:5px;}
+
+/* ══════════════════════════════════
+   BOOKMARKS MODAL
+══════════════════════════════════ */
+.bm-list{display:flex;flex-direction:column;}
+.bm-item{padding:12px 0;border-bottom:1px solid var(--border);cursor:default;}
+.bm-item:last-child{border-bottom:none;}
+.bm-conv{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text3);margin-bottom:4px;}
+.bm-content{
+  font-size:13px;color:var(--text2);line-height:1.55;
+  display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+  cursor:pointer;transition:color .15s;
+}
+.bm-content:hover{color:var(--text);}
+.bm-footer{display:flex;align-items:center;justify-content:space-between;margin-top:6px;}
+.bm-date{font-size:11px;color:var(--text3);font-family:var(--mono);}
+.bm-del{background:none;border:none;color:var(--text3);cursor:pointer;padding:2px;border-radius:4px;display:flex;transition:color .15s;}
+.bm-del:hover{color:var(--danger);}
+.bm-del svg{width:12px;height:12px;}
+.bm-empty{text-align:center;color:var(--text3);font-size:13px;padding:28px 0;line-height:1.7;}
 </style>
 </head>
 <body>
@@ -751,6 +828,14 @@ kbd{background:var(--bg3);border:1px solid var(--border2);border-radius:4px;padd
           <div class="u-mi" onclick="openShortcuts()">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
             Keyboard shortcuts
+          </div>
+          <div class="u-mi" onclick="openStats()">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+            Usage stats
+          </div>
+          <div class="u-mi" onclick="openBookmarks()">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>
+            Bookmarks
           </div>
           <div class="u-menu-divider"></div>
           <div class="u-mi red" onclick="doSignOut()">
@@ -944,12 +1029,46 @@ kbd{background:var(--bg3);border:1px solid var(--border2);border-radius:4px;padd
   </div>
 </div>
 
+<!-- STATS MODAL -->
+<div class="modal-bg" id="stats-modal" onclick="if(event.target.id==='stats-modal')closeModalId('stats-modal')">
+  <div class="modal">
+    <div class="modal-head">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18" style="color:var(--accent2)"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+      <span class="modal-title">Usage Stats</span>
+      <button class="modal-close" onclick="closeModalId('stats-modal')"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div class="stats-grid">
+        <div class="stat-card"><div class="stat-icon">💬</div><div class="stat-val" id="stat-msgs">—</div><div class="stat-lbl">Messages sent</div></div>
+        <div class="stat-card"><div class="stat-icon">🗂️</div><div class="stat-val" id="stat-convs">—</div><div class="stat-lbl">Conversations</div></div>
+        <div class="stat-card"><div class="stat-icon">⭐</div><div class="stat-val" id="stat-bms">—</div><div class="stat-lbl">Bookmarks saved</div></div>
+        <div class="stat-card"><div class="stat-icon">⏱️</div><div class="stat-val" id="stat-session">—</div><div class="stat-lbl">Session time</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- BOOKMARKS MODAL -->
+<div class="modal-bg" id="bookmarks-modal" onclick="if(event.target.id==='bookmarks-modal')closeModalId('bookmarks-modal')">
+  <div class="modal">
+    <div class="modal-head">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18" style="color:var(--accent2)"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>
+      <span class="modal-title">Bookmarks</span>
+      <button class="modal-close" onclick="closeModalId('bookmarks-modal')"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div class="bm-list" id="bm-list"></div>
+    </div>
+  </div>
+</div>
+
 <div class="toasts" id="toasts"></div>
 
 <!-- ═══════════════ FIREBASE ═══════════════ -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signOut as fbOut, onAuthStateChanged, updateProfile } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getFirestore, collection, doc, setDoc, getDoc, getDocs, deleteDoc, query, orderBy, limit, serverTimestamp, increment } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBA0_MCIYEWGuZyk_fYZWngtKVY7Pwnf8I",
@@ -966,6 +1085,7 @@ const MODEL_NAME    = "Arnav AI";
 
 const fb   = initializeApp(firebaseConfig);
 const auth = getAuth(fb);
+const db   = getFirestore(fb);
 const gp   = new GoogleAuthProvider();
 
 window._auth=auth; window._fbOut=fbOut;
@@ -976,6 +1096,20 @@ window._upPro=updateProfile;
 window.API_URL=MODEL_API_URL;
 window.MODEL=MODEL_NAME;
 document.getElementById('model-name').textContent=MODEL_NAME;
+
+// Firestore helpers exposed for main script
+window._db=db;
+window._fsDoc=(...a)=>doc(...a);
+window._fsColl=(...a)=>collection(...a);
+window._fsSet=(...a)=>setDoc(...a);
+window._fsGetDoc=(...a)=>getDoc(...a);
+window._fsGetAll=(...a)=>getDocs(...a);
+window._fsDel=(...a)=>deleteDoc(...a);
+window._fsQuery=(...a)=>query(...a);
+window._fsOrderBy=(...a)=>orderBy(...a);
+window._fsLimit=n=>limit(n);
+window._fsTimestamp=serverTimestamp;
+window._fsIncrement=n=>increment(n);
 
 // 3-second fallback in case Firebase is slow
 const _fbFb = setTimeout(()=>onLogout(), 3000);
@@ -1054,6 +1188,10 @@ function onLogin(u){
   $('u-avatar').textContent=n.slice(0,2).toUpperCase();
   $('u-name').textContent=n;$('u-email').textContent=u.email;
   if(window.innerWidth<=720)closeSb();else openSb();
+  currentUserId=u.uid;
+  sessionStart=Date.now();
+  loadFirestoreHistory(u.uid);
+  loadBookmarks(u.uid);
   setTimeout(showWelcome,700);
 }
 
@@ -1092,7 +1230,13 @@ async function doGoogle(){
   catch(e){if(e.code!=='auth/popup-closed-by-user')showErr(fmtErr(e.code));}
 }
 async function doSignOut(){
-  try{await window._fbOut(window._auth);clearHistory();}catch(e){}
+  try{
+    await window._fbOut(window._auth);
+    currentUserId=null;sessionStart=null;
+    allHistory=[];sessions={};msgs=[];currentChatId=null;chatTitle='';
+    bookmarks=[];bookmarksSet=new Set();
+    renderHistory([]);
+  }catch(e){}
 }
 function fmtErr(c){
   return({'auth/invalid-email':'Invalid email address.','auth/user-not-found':'No account found with this email.',
@@ -1141,19 +1285,56 @@ function closeUserMenu(){uMenuOpen=false;$('u-menu').classList.remove('on');$('u
 function closeModal(id,e){if(e.target.id===id)closeModalId(id);}
 function closeModalId(id){$(id).classList.remove('on');}
 
-// ── chat history (localStorage) ──
+// ── chat history (Firestore + localStorage fallback) ──
 let allHistory=[];
-function loadHistory(){
-  try{allHistory=JSON.parse(localStorage.getItem('arnav-history')||'[]');}catch(e){allHistory=[];}
+let currentUserId=null;
+let sessionStart=null;
+
+async function loadFirestoreHistory(uid){
+  try{
+    if(!window._db)throw new Error('db not ready');
+    const coll=window._fsColl(window._db,'users',uid,'conversations');
+    const q=window._fsQuery(coll,window._fsOrderBy('updatedAt','desc'),window._fsLimit(50));
+    const snap=await window._fsGetAll(q);
+    allHistory=[];sessions={};
+    snap.forEach(docSnap=>{
+      const data=docSnap.data();
+      allHistory.push({id:data.id,title:data.title,ts:data.updatedAt?.seconds*1000||Date.now()});
+      sessions[data.id]={msgs:data.msgs||[],title:data.title};
+    });
+    renderHistory(allHistory);
+  }catch(e){
+    // fallback to localStorage
+    try{allHistory=JSON.parse(localStorage.getItem('arnav-history')||'[]');}catch(e2){allHistory=[];}
+    renderHistory(allHistory);
+  }
+}
+
+async function saveConversation(id,isNew){
+  // Always keep localStorage as backup
+  try{localStorage.setItem('arnav-history',JSON.stringify(allHistory));}catch(e){}
+  if(!currentUserId||!sessions[id]||!window._db)return;
+  const s=sessions[id];
+  try{
+    const ref=window._fsDoc(window._db,'users',currentUserId,'conversations',id);
+    const data={id,title:s.title,msgs:s.msgs,msgCount:s.msgs.length,updatedAt:window._fsTimestamp()};
+    if(isNew)data.createdAt=window._fsTimestamp();
+    await window._fsSet(ref,data,{merge:true});
+  }catch(e){}
+}
+
+function addToHistory(id,title,isNew){
+  const existing=allHistory.find(h=>h.id===id);
+  if(!existing){
+    allHistory.unshift({id,title,ts:Date.now()});
+    if(allHistory.length>50)allHistory=allHistory.slice(0,50);
+  }else{
+    existing.title=title;
+  }
   renderHistory(allHistory);
+  saveConversation(id,isNew);
 }
-function saveHistory(){localStorage.setItem('arnav-history',JSON.stringify(allHistory));}
-function clearHistory(){allHistory=[];saveHistory();renderHistory([]);}
-function addToHistory(id,title){
-  allHistory.unshift({id,title,ts:Date.now()});
-  if(allHistory.length>50)allHistory=allHistory.slice(0,50);
-  saveHistory();renderHistory(allHistory);
-}
+
 function renderHistory(list){
   const c=$('hist-today');c.innerHTML='<div class="hist-label">Recent</div>';
   if(!list.length){c.innerHTML+='<div style="padding:8px 10px;font-size:12px;color:var(--text3);">No conversations yet</div>';return;}
@@ -1163,17 +1344,28 @@ function renderHistory(list){
     d.dataset.id=item.id;
     d.innerHTML=`<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
       <span class="hist-item-text">${esc(item.title)}</span>
-      <button class="hist-del" onclick="delHistory(event,'${item.id}')"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>`;
+      <button class="hist-del" onclick="delConversation(event,'${item.id}')"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>`;
     d.addEventListener('click',e=>{if(!e.target.closest('.hist-del'))loadChat(item.id);});
     c.appendChild(d);
   });
 }
-function delHistory(e,id){
+
+async function delConversation(e,id){
   e.stopPropagation();
   allHistory=allHistory.filter(h=>h.id!==id);
-  saveHistory();renderHistory(allHistory);
+  delete sessions[id];
+  renderHistory(allHistory);
+  try{localStorage.setItem('arnav-history',JSON.stringify(allHistory));}catch(e2){}
+  if(currentUserId&&window._db){
+    try{await window._fsDel(window._fsDoc(window._db,'users',currentUserId,'conversations',id));}catch(err){}
+  }
+  // Remove any bookmarks tied to this conversation
+  const removed=bookmarks.filter(b=>b.conversationId===id);
+  removed.forEach(b=>bookmarksSet.delete(b.conversationId+'-'+b.messageIndex));
+  bookmarks=bookmarks.filter(b=>b.conversationId!==id);
   toast('Conversation deleted','info');
 }
+
 function filterHistory(q){
   const filtered=q?allHistory.filter(h=>h.title.toLowerCase().includes(q.toLowerCase())):allHistory;
   renderHistory(filtered);
@@ -1215,7 +1407,7 @@ function loadChat(id){
   currentChatId=id;msgs=[...s.msgs];chatTitle=s.title;
   $('tb-title').textContent=chatTitle;
   $('msgs-inner').innerHTML='';
-  msgs.forEach(m=>{if(m.role==='user')appendUserBubble(m.content);else appendAIBubble(m.content);});
+  msgs.forEach((m,i)=>{if(m.role==='user')appendUserBubble(m.content,i);else appendAIBubble(m.content,false,i);});
   renderHistory(allHistory);
   if(window.innerWidth<=720)closeSb();
   scrollDown();
@@ -1319,20 +1511,34 @@ function copyText(btn){
   });
 }
 
-function appendUserBubble(text){
+function renderUserBubbleHtml(text,idx){
+  return `<span class="user-bubble-text">${esc(text)}</span><button class="user-edit-btn" onclick="startEditMsg(${idx})" title="Edit message"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="12" height="12"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>`;
+}
+
+function appendUserBubble(text,msgIndex){
   const e=$('empty-state');if(e)e.remove();
   const d=document.createElement('div');
   d.className='msg msg-user';
-  d.innerHTML=`<div class="user-bubble">${esc(text)}</div>`;
+  const bubble=document.createElement('div');
+  bubble.className='user-bubble';
+  if(msgIndex!==undefined)bubble.dataset.bubbleIdx=msgIndex;
+  bubble.innerHTML=renderUserBubbleHtml(text,msgIndex);
+  d.appendChild(bubble);
   $('msgs-inner').appendChild(d);
   scrollDown();
 }
 
-function appendAIBubble(text, webUsed){
+function bmBtnHtml(active){
+  return `<svg fill="${active?'currentColor':'none'}" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>${active?'Bookmarked':'Bookmark'}`;
+}
+
+function appendAIBubble(text,webUsed,msgIndex){
   const e=$('empty-state');if(e)e.remove();
   const d=document.createElement('div');d.className='msg msg-ai';
   const wb=webUsed?'<span class="web-badge">🌐 web</span>':'';
   const mid='tts'+Date.now()+Math.random().toString(36).slice(2,5);
+  const bmKey=(currentChatId&&msgIndex!==undefined)?currentChatId+'-'+msgIndex:'';
+  const isBm=bmKey?bookmarksSet.has(bmKey):false;
   d.innerHTML=`<div class="ai-ava"><svg viewBox="0 0 20 20" fill="none"><path d="M10 2L12.2 7.5H18L13.5 10.8L15.3 16.5L10 13.2L4.7 16.5L6.5 10.8L2 7.5H7.8L10 2Z" fill="white"/></svg></div>
   <div class="ai-body-wrap">
     <div class="ai-meta">
@@ -1344,6 +1550,7 @@ function appendAIBubble(text, webUsed){
       <button class="act-btn" onclick="copyText(this)"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>Copy</button>
       <button class="act-btn" id="spk${mid}" onclick="speakMsg('${mid}',this)"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072M12 6a7 7 0 010 12M8.464 8.464a5 5 0 000 7.072"/></svg>Read aloud</button>
       <button class="act-btn" onclick="regenLast()"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>Regenerate</button>
+      <button class="act-btn${isBm?' bookmarked':''}" data-bm-key="${bmKey}" onclick="toggleBookmark('${currentChatId}',${msgIndex},document.getElementById('${mid}').innerText,this)">${bmBtnHtml(isBm)}</button>
     </div>
   </div>`;
   $('msgs-inner').appendChild(d);scrollDown();
@@ -1386,15 +1593,17 @@ async function sendMsg(){
   if(!text)return;
   inp.value='';inp.style.height='auto';$('send-btn').disabled=true;$('char-count').textContent='0 / 2000';
 
-  if(!chatTitle){
-    chatTitle=text.length>42?text.slice(0,42)+'…':text;
+  const isNew=!chatTitle;
+  if(isNew){
+    chatTitle=generateTitle(text);
     $('tb-title').textContent=chatTitle;
     if(!currentChatId)currentChatId=genId();
-    addToHistory(currentChatId,chatTitle);
+    addToHistory(currentChatId,chatTitle,true);
   }
 
   msgs.push({role:'user',content:text});
-  appendUserBubble(text);
+  appendUserBubble(text,msgs.length-1);
+  updateStats(isNew);
   await callAPI(text,true);
 }
 
@@ -1417,10 +1626,10 @@ async function callAPI(text,isNew){
     const data=await res.json();
     const reply=data.response||data.generated_text||data.choices?.[0]?.message?.content||data.text||'(no response)';
     msgs.push({role:'assistant',content:reply});
-    // save session
     sessions[currentChatId]={msgs:[...msgs],title:chatTitle};
+    saveConversation(currentChatId,false);
     const webUsed=data.web_search_used||false;
-    appendAIBubble(reply,webUsed);
+    appendAIBubble(reply,webUsed,msgs.length-1);
     if(settings.sound)playChime();
     if(settings.tts)autoSpeak(reply);
   }catch(err){
@@ -1682,8 +1891,205 @@ if(window.speechSynthesis){
   };
 }
 
+// ══════════════════════════════════════
+// AUTO-GENERATED TITLES
+// ══════════════════════════════════════
+function generateTitle(text){
+  const clean=text.trim().replace(/\s+/g,' ');
+  if(clean.length<=40)return clean.charAt(0).toUpperCase()+clean.slice(1);
+  const cut=clean.slice(0,38);
+  const lastSpace=cut.lastIndexOf(' ');
+  const trimmed=lastSpace>15?cut.slice(0,lastSpace):cut;
+  return trimmed.charAt(0).toUpperCase()+trimmed.slice(1)+'…';
+}
+
+// ══════════════════════════════════════
+// MESSAGE EDITING
+// ══════════════════════════════════════
+function startEditMsg(idx){
+  if(busy)return;
+  const bubble=document.querySelector(`[data-bubble-idx="${idx}"]`);
+  if(!bubble)return;
+  const origText=msgs[idx]?.content||'';
+  bubble.classList.add('editing');
+  bubble.innerHTML=`<textarea class="user-edit-textarea" rows="3">${origText.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</textarea><div class="user-edit-actions"><button class="edit-cancel-btn">Cancel</button><button class="edit-save-btn">Save &amp; Resend</button></div>`;
+  const ta=bubble.querySelector('textarea');
+  ta.focus();ta.setSelectionRange(ta.value.length,ta.value.length);
+  ta.addEventListener('input',()=>{ta.style.height='auto';ta.style.height=Math.min(ta.scrollHeight,200)+'px';});
+  ta.addEventListener('keydown',ev=>{
+    if(ev.key==='Enter'&&!ev.shiftKey){ev.preventDefault();saveEditMsg(idx);}
+    if(ev.key==='Escape')cancelEditMsg(idx);
+  });
+  bubble.querySelector('.edit-cancel-btn').onclick=()=>cancelEditMsg(idx);
+  bubble.querySelector('.edit-save-btn').onclick=()=>saveEditMsg(idx);
+}
+
+function cancelEditMsg(idx){
+  const bubble=document.querySelector(`[data-bubble-idx="${idx}"]`);
+  if(!bubble)return;
+  const origText=msgs[idx]?.content||'';
+  bubble.classList.remove('editing');
+  bubble.innerHTML=renderUserBubbleHtml(origText,idx);
+}
+
+async function saveEditMsg(idx){
+  if(busy)return;
+  const bubble=document.querySelector(`[data-bubble-idx="${idx}"]`);
+  if(!bubble)return;
+  const ta=bubble.querySelector('.user-edit-textarea');
+  if(!ta)return;
+  const newText=ta.value.trim();
+  if(!newText){toast('Message cannot be empty','err');return;}
+
+  // Update msgs array, drop everything after edited message
+  msgs[idx]={role:'user',content:newText};
+  msgs=msgs.slice(0,idx+1);
+
+  // Remove all DOM messages after the edited bubble's parent
+  const parentMsg=bubble.closest('.msg');
+  if(parentMsg){
+    let next=parentMsg.nextElementSibling;
+    while(next){const rem=next;next=next.nextElementSibling;rem.remove();}
+  }
+
+  // Restore bubble
+  bubble.classList.remove('editing');
+  bubble.innerHTML=renderUserBubbleHtml(newText,idx);
+
+  // Update session cache
+  sessions[currentChatId]={msgs:[...msgs],title:chatTitle};
+
+  // Re-call API
+  await callAPI(newText,false);
+}
+
+// ══════════════════════════════════════
+// USAGE STATS
+// ══════════════════════════════════════
+async function updateStats(isNewConv){
+  if(!currentUserId||!window._db)return;
+  try{
+    const ref=window._fsDoc(window._db,'users',currentUserId,'stats');
+    const data={totalMessages:window._fsIncrement(1),lastActiveAt:window._fsTimestamp()};
+    if(isNewConv)data.totalConversations=window._fsIncrement(1);
+    await window._fsSet(ref,data,{merge:true});
+  }catch(e){}
+}
+
+function openStats(){
+  closeUserMenu();
+  const totalMsgs=allHistory.reduce((sum,h)=>sum+(sessions[h.id]?.msgs?.filter(m=>m.role==='user').length||0),0);
+  const totalConvs=allHistory.length;
+  const totalBms=bookmarks.length;
+  const elapsed=sessionStart?Math.floor((Date.now()-sessionStart)/60000):0;
+  const sessionStr=elapsed<1?'< 1 min':elapsed<60?elapsed+' min':Math.floor(elapsed/60)+'h '+(elapsed%60)+'m';
+  $('stat-msgs').textContent=totalMsgs;
+  $('stat-convs').textContent=totalConvs;
+  $('stat-bms').textContent=totalBms;
+  $('stat-session').textContent=sessionStr;
+  $('stats-modal').classList.add('on');
+}
+
+// ══════════════════════════════════════
+// BOOKMARKS
+// ══════════════════════════════════════
+let bookmarks=[];
+let bookmarksSet=new Set();
+
+async function loadBookmarks(uid){
+  if(!uid||!window._db)return;
+  try{
+    const coll=window._fsColl(window._db,'users',uid,'bookmarks');
+    const q=window._fsQuery(coll,window._fsOrderBy('createdAt','desc'));
+    const snap=await window._fsGetAll(q);
+    bookmarks=[];bookmarksSet=new Set();
+    snap.forEach(docSnap=>{
+      const data={id:docSnap.id,...docSnap.data()};
+      bookmarks.push(data);
+      bookmarksSet.add(data.conversationId+'-'+data.messageIndex);
+    });
+  }catch(e){}
+}
+
+async function toggleBookmark(convId,msgIdx,content,btn){
+  if(!currentUserId){toast('Sign in to use bookmarks','err');return;}
+  const key=convId+'-'+msgIdx;
+  if(bookmarksSet.has(key)){
+    const bm=bookmarks.find(b=>b.conversationId===convId&&b.messageIndex===msgIdx);
+    bookmarks=bookmarks.filter(b=>!(b.conversationId===convId&&b.messageIndex===msgIdx));
+    bookmarksSet.delete(key);
+    btn.classList.remove('bookmarked');
+    btn.innerHTML=bmBtnHtml(false);
+    toast('Bookmark removed','info');
+    if(bm&&window._db){
+      try{await window._fsDel(window._fsDoc(window._db,'users',currentUserId,'bookmarks',bm.id));}catch(e){}
+    }
+  }else{
+    const id=genId();
+    const convTitle=sessions[convId]?.title||chatTitle||'Untitled';
+    const data={id,conversationId:convId,conversationTitle:convTitle,messageIndex:msgIdx,content:content.trim().slice(0,500),createdAt:Date.now()};
+    bookmarks.unshift(data);
+    bookmarksSet.add(key);
+    btn.classList.add('bookmarked');
+    btn.innerHTML=bmBtnHtml(true);
+    toast('Bookmarked ★','ok');
+    if(window._db){
+      try{
+        const ref=window._fsDoc(window._db,'users',currentUserId,'bookmarks',id);
+        await window._fsSet(ref,{...data,createdAt:window._fsTimestamp()});
+      }catch(e){}
+    }
+  }
+}
+
+function openBookmarks(){
+  closeUserMenu();
+  const list=$('bm-list');
+  list.innerHTML='';
+  if(!bookmarks.length){
+    list.innerHTML='<div class="bm-empty">No bookmarks yet.<br>Click the bookmark icon on any AI message to save it.</div>';
+  }else{
+    bookmarks.forEach(bm=>{
+      const d=document.createElement('div');
+      d.className='bm-item';
+      const date=new Date(bm.createdAt).toLocaleDateString('en-US',{month:'short',day:'numeric'});
+      d.innerHTML=`<div class="bm-conv">${esc(bm.conversationTitle)}</div>
+        <div class="bm-content">${esc(bm.content)}</div>
+        <div class="bm-footer">
+          <span class="bm-date">${date}</span>
+          <button class="bm-del" onclick="removeBookmark(event,'${bm.id}','${bm.conversationId}',${bm.messageIndex})" title="Remove bookmark"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
+        </div>`;
+      d.querySelector('.bm-content').addEventListener('click',()=>{
+        closeModalId('bookmarks-modal');
+        if(bm.conversationId&&sessions[bm.conversationId])loadChat(bm.conversationId);
+        else toast('Conversation no longer available','info');
+      });
+      list.appendChild(d);
+    });
+  }
+  $('bookmarks-modal').classList.add('on');
+}
+
+async function removeBookmark(e,bmId,convId,msgIdx){
+  e.stopPropagation();
+  bookmarks=bookmarks.filter(b=>b.id!==bmId);
+  bookmarksSet.delete(convId+'-'+msgIdx);
+  // Update button in chat if visible
+  const chatBtn=document.querySelector(`[data-bm-key="${convId}-${msgIdx}"]`);
+  if(chatBtn){chatBtn.classList.remove('bookmarked');chatBtn.innerHTML=bmBtnHtml(false);}
+  // Remove from DOM in modal
+  const item=e.target.closest('.bm-item');
+  if(item)item.remove();
+  if(!$('bm-list').children.length){
+    $('bm-list').innerHTML='<div class="bm-empty">No bookmarks yet.<br>Click the bookmark icon on any AI message to save it.</div>';
+  }
+  toast('Bookmark removed','info');
+  if(currentUserId&&window._db){
+    try{await window._fsDel(window._fsDoc(window._db,'users',currentUserId,'bookmarks',bmId));}catch(err){}
+  }
+}
+
 // ── init ──
-loadHistory();
 $('cinput').addEventListener('input',function(){$('send-btn').disabled=!this.value.trim();});
 
 // welcome toast — called from onLogin()
