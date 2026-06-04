@@ -782,50 +782,113 @@ function applyLineNumbers(){
 }
 
 // ══════════════════════════════════════
-// MARKDOWN FORMATTER
+// MARKDOWN FORMATTER  (fixed 2-stage pipeline)
 // ══════════════════════════════════════
 function fmt(raw){
-  let t=raw.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  t=t.replace(/```(\w*)\n?([\s\S]*?)```/g,(m,lang,code)=>{
+  const blocks=[];
+
+  // ── STAGE 1: extract fenced code blocks BEFORE HTML-encoding
+  // so hljs receives the raw source text (not &lt; etc.)
+  let t=raw.replace(/```(\w*)\n?([\s\S]*?)```/g,(m,lang,code)=>{
     const l=(lang||'code').toLowerCase();
     const trimmed=code.trim();
     const lineCount=trimmed.split('\n').length;
     let highlighted;
     try{
-      const hljs=window.hljs;
-      if(hljs){
-        highlighted=l&&l!=='code'&&hljs.getLanguage(l)
-          ?hljs.highlight(trimmed,{language:l,ignoreIllegals:true}).value
-          :hljs.highlightAuto(trimmed).value;
+      const h=window.hljs;
+      if(h){
+        highlighted=l&&l!=='code'&&h.getLanguage(l)
+          ?h.highlight(trimmed,{language:l,ignoreIllegals:true}).value
+          :h.highlightAuto(trimmed).value;
       }else highlighted=esc(trimmed);
     }catch(e){highlighted=esc(trimmed);}
     const wrapBtn=`<button class="code-expand-btn code-wrap-btn" onclick="toggleWrap(this)" title="Toggle word wrap"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="11" height="11"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h12a4 4 0 010 8h-4"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 15l-2 2 2 2"/></svg></button>`;
-    const dlBtn=`<button class="code-expand-btn" onclick="downloadCode(this)" title="Download file"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="11" height="11"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg></button>`;
+    const dlBtn=`<button class="code-expand-btn" onclick="downloadCode(this)" title="Download"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="11" height="11"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg></button>`;
     const expandBtn=`<button class="code-expand-btn" onclick="openFullscreen(this)" title="Fullscreen"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="11" height="11"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/></svg></button>`;
     const isPreviewable=['html','svg','css','js','javascript'].includes(l);
     const previewBtn=isPreviewable?`<button class="code-expand-btn code-preview-btn" onclick="previewCode(this)" title="Preview"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="11" height="11"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>Preview</button>`:'';
     const copyBtn=`<button class="code-copy" onclick="copyCode(this)"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>Copy</button>`;
-    return `<div class="code-block cb-${esc(l)}"><div class="code-header"><span class="code-lang-wrap"><span class="lang-dot"></span><span class="code-lang">${esc(l)}</span><span class="code-line-count">${lineCount} line${lineCount!==1?'s':''}</span></span><div class="code-header-actions">${wrapBtn}${dlBtn}${expandBtn}${previewBtn}${copyBtn}</div></div><pre data-linecount="${lineCount}"><code class="hljs">${highlighted}</code></pre></div>`;
+    const html=`<div class="code-block cb-${esc(l)}"><div class="code-header"><span class="code-lang-wrap"><span class="lang-dot"></span><span class="code-lang">${esc(l)}</span><span class="code-line-count">${lineCount} line${lineCount!==1?'s':''}</span></span><div class="code-header-actions">${wrapBtn}${dlBtn}${expandBtn}${previewBtn}${copyBtn}</div></div><pre data-linecount="${lineCount}"><code class="hljs">${highlighted}</code></pre></div>`;
+    blocks.push(html);
+    return'\x00CB'+(blocks.length-1)+'\x00';
   });
+
+  // ── STAGE 2: HTML-encode the remaining text (safe now — code is gone)
+  t=t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+  // Replace tokens with a block-level div so the paragraph processor
+  // treats each code block as a block element (not inline text)
+  t=t.replace(/\x00CB(\d+)\x00/g,'<div data-cb="$1"></div>');
+
+  // ── STAGE 3: markdown transforms on the remaining text
+
+  // Inline code (must come before bold/italic so `*text*` inside backticks isn't parsed)
   t=t.replace(/`([^`\n]+)`/g,'<code>$1</code>');
+
+  // Headings
   t=t.replace(/^### (.+)$/gm,'<h3>$1</h3>');
   t=t.replace(/^## (.+)$/gm,'<h2>$1</h2>');
   t=t.replace(/^# (.+)$/gm,'<h1>$1</h1>');
+
+  // Text emphasis
   t=t.replace(/\*\*\*(.+?)\*\*\*/g,'<strong><em>$1</em></strong>');
   t=t.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>');
   t=t.replace(/\*(.+?)\*/g,'<em>$1</em>');
+  t=t.replace(/~~(.+?)~~/g,'<del>$1</del>');
+
+  // Blockquote — &gt; after encoding
   t=t.replace(/^&gt; (.+)$/gm,'<blockquote>$1</blockquote>');
+
+  // Horizontal rule
   t=t.replace(/^---+$/gm,'<hr/>');
+
+  // Markdown tables  |col|col| ... |---|---| ...
+  t=t.replace(/(?:^\|.+\|\s*\n?)+/gm,tbl=>{
+    const rows=tbl.trim().split('\n');
+    if(rows.length<2)return tbl;
+    const sepIdx=rows.findIndex(r=>/^\|[\s:|-]+\|/.test(r));
+    let html='<div class="table-wrap"><table>';
+    rows.forEach((row,i)=>{
+      if(i===sepIdx)return;
+      const cells=row.replace(/^\||\|$/g,'').split('|').map(c=>c.trim());
+      const tag=(sepIdx>0&&i<sepIdx)?'th':'td';
+      html+='<tr>'+cells.map(c=>`<${tag}>${c}</${tag}>`).join('')+'</tr>';
+    });
+    html+='</table></div>';
+    return html;
+  });
+
+  // Markdown links [text](url)
+  t=t.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g,'<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+
+  // Bare URL auto-link (not already inside an href or code)
+  t=t.replace(/(?<!["\(='>])(https?:\/\/[^\s<>"')]+)/g,'<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
+
+  // Unordered lists
   t=t.replace(/(?:^[*\-] .+\n?)+/gm,m=>'<ul>'+m.replace(/^[*\-] (.+)$/gm,'<li>$1</li>')+'</ul>');
+
+  // Ordered lists
   t=t.replace(/(?:^\d+\. .+\n?)+/gm,m=>'<ol>'+m.replace(/^\d+\. (.+)$/gm,'<li>$1</li>')+'</ol>');
-  const lines=t.split('\n');let out='',inP=false;
+
+  // ── STAGE 4: paragraph assembly
+  const lines=t.split('\n');
+  let out='',inP=false;
   for(const line of lines){
-    const trimmed=line.trim();
-    if(!trimmed){if(inP){out+='</p>';inP=false;}continue;}
-    if(/^<(h[1-3]|ul|ol|blockquote|hr|div)/.test(trimmed)){if(inP){out+='</p>';inP=false;}out+=trimmed;}
-    else{if(!inP){out+='<p>';inP=true;}else out+=' ';out+=trimmed;}
+    const tr=line.trim();
+    if(!tr){if(inP){out+='</p>';inP=false;}continue;}
+    if(/^<(h[1-3]|ul|ol|blockquote|hr|div|table)/.test(tr)){
+      if(inP){out+='</p>';inP=false;}
+      out+=tr;
+    }else{
+      if(!inP){out+='<p>';inP=true;}else out+=' ';
+      out+=tr;
+    }
   }
   if(inP)out+='</p>';
+
+  // ── STAGE 5: restore code blocks
+  out=out.replace(/<div data-cb="(\d+)"><\/div>/g,(m,i)=>blocks[+i]||m);
+
   return out;
 }
 
@@ -986,7 +1049,21 @@ function showTyping(webSearch,codeActive){
   $('msgs-inner').appendChild(d);scrollDown();
 }
 function hideTyping(){const t=$('typing');if(t)t.remove();}
-function stopGen(){stopRequested=true;toast('Stopping…','info',1500);}
+function stopGen(){
+  stopRequested=true;
+  // Abort the in-flight network request immediately
+  if(_abortController){_abortController.abort();_abortController=null;}
+  // If typewriter is running, reveal full text now instead of stopping mid-word
+  if(_twInterval){
+    clearInterval(_twInterval);_twInterval=null;
+    const el=document.querySelector('.ai-body.streaming');
+    if(el&&_twFullText){
+      const bubbleDiv=el.closest('.msg');
+      _finishTypewriter(_twFullText,el,bubbleDiv,_twMsgIdx);
+    }
+  }
+  toast('Stopped','info',1200);
+}
 
 function useChip(el){
   const label=el.querySelector('.chip-label')?.textContent||el.textContent;
@@ -1126,6 +1203,7 @@ async function sendMsg(){
 // ══════════════════════════════════════
 let _twInterval=null,_twOnDone=null,_twFullText='';
 let _twMsgIdx=-1,_twChatId=null; // captured per-stream to survive chat switches
+let _abortController=null; // AbortController for in-flight fetch
 
 function _createStreamBubble(webUsed,msgIndex,elapsed){
   const e=$('empty-state');if(e)e.remove();
@@ -1211,7 +1289,10 @@ function _skipTypewriter(){
 
 async function callAPI(text,isNew){
   busy=true;stopRequested=false;
+  _abortController=new AbortController();
   $('send-btn').disabled=true;$('stop-btn').classList.add('on');
+  // During the fetch phase the stop button aborts the request
+  $('stop-btn').onclick=stopGen;
   _setGenerating(true);
 
   // ─── Capture chat context at call time.
@@ -1237,7 +1318,8 @@ async function callAPI(text,isNew){
     const res=await fetch(window.API_URL,{
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},
-      body:JSON.stringify({messages:msgsToSend,web_search:_webSearch,code_mode:_codeActive})
+      body:JSON.stringify({messages:msgsToSend,web_search:_webSearch,code_mode:_codeActive}),
+      signal:_abortController.signal
     });
 
     // Hide typing only if we're still on this chat
@@ -1251,6 +1333,7 @@ async function callAPI(text,isNew){
     }
     if(!res.ok)throw new Error('API error '+res.status);
 
+    _abortController=null;
     const data=await res.json();
     const reply=data.response||data.generated_text||data.choices?.[0]?.message?.content||data.text||'(no response)';
     const elapsed=((Date.now()-_t0)/1000).toFixed(1);
@@ -1289,12 +1372,23 @@ async function callAPI(text,isNew){
       _setGenerating(false);
     }
   }catch(err){
+    _abortController=null;
+    if(err.name==='AbortError'||stopRequested){
+      // User clicked Stop — clean up silently
+      if(_onThisChat())hideTyping();
+      busy=false;$('stop-btn').classList.remove('on');
+      $('stop-btn').onclick=stopGen;
+      $('send-btn').disabled=!$('cinput').value.trim();
+      _setGenerating(false);
+      return;
+    }
     if(_onThisChat()){
       hideTyping();
       appendAIBubble('⚠️ Could not reach the model.\n\n`'+err.message+'`\n\nCheck your HuggingFace Space is running.');
     }
     toast('Connection error — check your Space','err');
     busy=false;$('stop-btn').classList.remove('on');
+    $('stop-btn').onclick=stopGen;
     $('send-btn').disabled=!$('cinput').value.trim();
     _setGenerating(false);
   }
@@ -1777,7 +1871,7 @@ async function manageSubscription(){
     const res=await fetch(_backendUrl()+'/create-portal-session',{
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},
-      body:JSON.stringify({customer_id:customerId,return_url:origin+path})
+      body:JSON.stringify({customer_id:customerId,return_url:origin+path,user_email:u.email||''})
     });
     if(!res.ok){const e=await res.json().catch(()=>({}));throw new Error(e.detail||'Portal error '+res.status);}
     const data=await res.json();
