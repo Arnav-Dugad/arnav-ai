@@ -616,11 +616,26 @@ function toggleWebMode(){
     toast('Web search off','info');
   }
 }
+const _CODE_MODE_PROMPT='You are in code mode. Prioritize writing clean, working code. Always use markdown code blocks with the correct language identifier. Include a brief explanation after each code block. Prefer practical examples over theory. Show the complete code, not snippets.';
+
 function toggleCodeMode(){
   codeMode=!codeMode;
   $('btn-code').classList.toggle('on',codeMode);
   $('cinput').placeholder=codeMode?'Describe the code you need…':'Message Arnav AI…';
-  toast(codeMode?'Code mode on':'Code mode off','info');
+  // Update combined mode label when both web+code active
+  if(webSearchMode){
+    const info=_currentPlan==='free'?' · '+Math.max(0,FREE_WEB_LIMIT-_getDailyWebCount())+'/'+FREE_WEB_LIMIT+' web searches left':'';
+    $('btn-web').querySelector('.btn-label').textContent=codeMode?'Web+Code':(_currentPlan==='free'?'Web · '+Math.max(0,FREE_WEB_LIMIT-_getDailyWebCount()):'Search');
+  }
+  toast(codeMode?'💻 Code mode on':'Code mode off','info');
+}
+
+function _buildSystemPrompt(){
+  const parts=[];
+  if(_personaBasePrompt)parts.push(_personaBasePrompt);
+  if(codeMode)parts.push(_CODE_MODE_PROMPT);
+  if(systemPrompt)parts.push(systemPrompt);
+  return parts.join('\n\n');
 }
 
 // ── input history (↑/↓ arrows) ──
@@ -787,8 +802,10 @@ function fmt(raw){
     const wrapBtn=`<button class="code-expand-btn code-wrap-btn" onclick="toggleWrap(this)" title="Toggle word wrap"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="11" height="11"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h12a4 4 0 010 8h-4"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 15l-2 2 2 2"/></svg></button>`;
     const dlBtn=`<button class="code-expand-btn" onclick="downloadCode(this)" title="Download file"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="11" height="11"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg></button>`;
     const expandBtn=`<button class="code-expand-btn" onclick="openFullscreen(this)" title="Fullscreen"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="11" height="11"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/></svg></button>`;
+    const isPreviewable=['html','svg','css','js','javascript'].includes(l);
+    const previewBtn=isPreviewable?`<button class="code-expand-btn code-preview-btn" onclick="previewCode(this)" title="Preview"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="11" height="11"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>Preview</button>`:'';
     const copyBtn=`<button class="code-copy" onclick="copyCode(this)"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>Copy</button>`;
-    return `<div class="code-block cb-${esc(l)}"><div class="code-header"><span class="code-lang-wrap"><span class="lang-dot"></span><span class="code-lang">${esc(l)}</span><span class="code-line-count">${lineCount} line${lineCount!==1?'s':''}</span></span><div class="code-header-actions">${wrapBtn}${dlBtn}${expandBtn}${copyBtn}</div></div><pre data-linecount="${lineCount}"><code class="hljs">${highlighted}</code></pre></div>`;
+    return `<div class="code-block cb-${esc(l)}"><div class="code-header"><span class="code-lang-wrap"><span class="lang-dot"></span><span class="code-lang">${esc(l)}</span><span class="code-line-count">${lineCount} line${lineCount!==1?'s':''}</span></span><div class="code-header-actions">${wrapBtn}${dlBtn}${expandBtn}${previewBtn}${copyBtn}</div></div><pre data-linecount="${lineCount}"><code class="hljs">${highlighted}</code></pre></div>`;
   });
   t=t.replace(/`([^`\n]+)`/g,'<code>$1</code>');
   t=t.replace(/^### (.+)$/gm,'<h3>$1</h3>');
@@ -951,14 +968,19 @@ function appendAIBubble(text,webUsed,msgIndex,elapsed){
   </div>`;
   $('msgs-inner').appendChild(d);
   applyLineNumbersTo(d);
+  _appendFollowUps(d.querySelector('.ai-body-wrap'),text);
   scrollDown();
   return d;
 }
 
-function showTyping(webSearch){
+function showTyping(webSearch,codeActive){
   const e=$('empty-state');if(e)e.remove();
   const d=document.createElement('div');d.className='typing-msg';d.id='typing';
-  const label=webSearch?'<span class="thinking-web">🔍 Searching web…</span>':'Thinking…';
+  let label;
+  if(webSearch&&codeActive)label='<span class="thinking-web">🔍💻 Searching web for code…</span>';
+  else if(webSearch)label='<span class="thinking-web">🔍 Searching web…</span>';
+  else if(codeActive)label='<span class="thinking-code">💻 Writing code…</span>';
+  else label='Thinking…';
   d.innerHTML=`<div class="ai-ava"><svg viewBox="0 0 20 20" fill="none"><path d="M10 2L12.2 7.5H18L13.5 10.8L15.3 16.5L10 13.2L4.7 16.5L6.5 10.8L2 7.5H7.8L10 2Z" fill="white"/></svg></div>
   <div><div class="typing-dots"><div class="tdot"></div><div class="tdot"></div><div class="tdot"></div></div><div class="thinking-label">${label}</div></div>`;
   $('msgs-inner').appendChild(d);scrollDown();
@@ -979,6 +1001,78 @@ function forkChat(text){
   inp.value='Continue from this:\n\n'+snippet;
   onInput(inp);inp.focus();
   toast('Context pasted — edit and press Enter to send','ok',4000);
+}
+
+// ══════════════════════════════════════
+// FOLLOW-UP SUGGESTION CHIPS
+// ══════════════════════════════════════
+function _generateFollowUps(text){
+  const t=text.toLowerCase();
+  const hasCode=/```|function |class |import |const |let |var /.test(t);
+  const hasError=/error|exception|fail|bug|crash|undefined|null/.test(t);
+  const hasList=(t.match(/^\d+\./m)||[]).length>1||(t.match(/^[-*] /m)||[]).length>2;
+  const hasLink=/https?:\/\/|source:|url:/.test(t);
+  if(hasCode&&hasError)return['How do I fix this?','Show the corrected code','What caused this error?'];
+  if(hasCode)return['Explain the code','Show a real-world example','How can I improve this?'];
+  if(hasError)return['How do I solve this?','What are the alternatives?','Explain the root cause'];
+  if(hasList)return['Tell me more about #1','How do I get started?','Compare these options'];
+  if(hasLink)return['Summarize the key points','What should I do with this?','Tell me more'];
+  return['Tell me more','Give me an example','What should I do next?'];
+}
+
+function _appendFollowUps(wrap,text){
+  if(!text||text.length<80)return;
+  const suggestions=_generateFollowUps(text);
+  const div=document.createElement('div');
+  div.className='followup-chips';
+  suggestions.forEach(s=>{
+    const btn=document.createElement('button');
+    btn.className='followup-chip';
+    btn.textContent=s;
+    btn.addEventListener('click',()=>{
+      $('cinput').value=s;onInput($('cinput'));$('cinput').focus();
+      div.remove();
+    });
+    div.appendChild(btn);
+  });
+  const close=document.createElement('button');
+  close.className='followup-close';close.title='Dismiss';
+  close.innerHTML='<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="10" height="10"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>';
+  close.addEventListener('click',()=>div.remove());
+  div.appendChild(close);
+  wrap.appendChild(div);
+}
+
+// ══════════════════════════════════════
+// HTML / ARTIFACTS PREVIEW
+// ══════════════════════════════════════
+let _previewContent='';
+
+function previewCode(btn){
+  const block=btn.closest('.code-block');
+  const lang=(block.querySelector('.code-lang').textContent||'').toLowerCase().trim();
+  const code=block.querySelector('code').innerText;
+  const previewable=['html','svg','css','javascript','js'];
+  if(!previewable.includes(lang)){toast('Preview available for HTML, SVG and CSS','info',2500);return;}
+  let content=code;
+  if(lang==='css')content=`<style>${code}</style><div style="font-family:sans-serif;padding:16px;color:#333"><p>CSS preview — add HTML elements to see them styled.</p></div>`;
+  else if(lang==='js'||lang==='javascript')content=`<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body style="font-family:sans-serif;padding:16px"><pre id="out" style="background:#f5f5f5;padding:12px;border-radius:6px;font-size:13px"></pre><script>const _log=console.log;console.log=(...a)=>{document.getElementById('out').textContent+=a.join(' ')+'\\n';_log(...a);};\n${code}\n<\/script></body></html>`;
+  _previewContent=content;
+  const iframe=$('preview-iframe');
+  if(iframe){iframe.srcdoc=content;}
+  $('preview-modal').classList.add('on');
+}
+
+function openPreviewNewTab(){
+  const w=window.open('','_blank');
+  if(w){w.document.write(_previewContent);w.document.close();}
+}
+
+function printConversation(){
+  if(!msgs||!msgs.length){toast('No messages to print','info');return;}
+  const w=window.open('','_blank');
+  if(w){w.document.write(_htmlText());w.document.close();w.print();}
+  closeModalId('share-modal');
 }
 
 async function regenLast(){
@@ -1096,6 +1190,7 @@ function _finishTypewriter(fullText,bodyEl,bubbleDiv,msgIndex){
         <button class="act-btn rate-btn" onclick="rateMsg(-1,this)" title="Not helpful"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14H5.236a2 2 0 01-1.789-2.894l3.5-7A2 2 0 018.736 3h4.018a2 2 0 01.485.06l3.76.94m-7 10v5a2 2 0 002 2h.096c.5 0 .905-.405.905-.904 0-.715.211-1.413.608-2.008L17 13V4m-7 10h2m5-10h2a2 2 0 012 2v6a2 2 0 01-2 2h-2.5"/></svg></button>
       </div>`;
     wrap.appendChild(actDiv);
+    _appendFollowUps(wrap,fullText);
   }
   applyLineNumbersTo(bubbleDiv);
   scrollDown();
@@ -1126,9 +1221,10 @@ async function callAPI(text,isNew){
   const _cMsgs = msgs;            // reference — survives reassignment of global `msgs`
   const _cTitle = chatTitle;
   const _webSearch = webSearchMode; // capture before any await
+  const _codeActive = codeMode;
   const _onThisChat=()=>currentChatId===_cId;
 
-  if(_onThisChat())showTyping(_webSearch);
+  if(_onThisChat())showTyping(_webSearch,_codeActive);
 
   const _t0=Date.now();
   let _streamStarted=false;
@@ -1141,7 +1237,7 @@ async function callAPI(text,isNew){
     const res=await fetch(window.API_URL,{
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},
-      body:JSON.stringify({messages:msgsToSend,web_search:webSearchMode})
+      body:JSON.stringify({messages:msgsToSend,web_search:_webSearch,code_mode:_codeActive})
     });
 
     // Hide typing only if we're still on this chat
@@ -1337,6 +1433,8 @@ function doShare(type){
     a.download=((chatTitle||'chat').replace(/[^a-z0-9]/gi,'-').toLowerCase().slice(0,40)||'arnav-ai')+'.html';
     document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
     toast('HTML downloaded!','ok');closeModalId('share-modal');
+  }else if(type==='print'){
+    printConversation();
   }else if(type==='native'){
     if(navigator.share)navigator.share({title:chatTitle||'Arnav AI Chat',text:_shareText()}).catch(()=>{});
     else navigator.clipboard.writeText(_shareText()).then(()=>toast('Copied','info'));
@@ -1514,6 +1612,10 @@ function _applyPlanUI(plan){
   const upBtn=$('upgrade-topbar-btn');
   if(upBtn)upBtn.style.display=(plan==='free')?'':'none';
   renderDailyBar();
+  _updateWebBtn();
+  // Show/hide manage sub button in profile
+  const profManageBtn=$('prof-manage-btn');
+  if(profManageBtn)profManageBtn.style.display=(plan!=='free')?'':'none';
 }
 
 function _showCheckoutOverlay(){
@@ -1559,6 +1661,9 @@ function _syncPlanCards(){
       cta.className='plan-cta plan-cta-pro';
     }
   });
+  // Show/hide manage subscription row
+  const manageRow=$('manage-sub-row');
+  if(manageRow)manageRow.style.display=(_currentPlan!=='free')?'':'none';
 }
 
 async function buyPlan(planId){
@@ -1648,6 +1753,40 @@ async function _persistSubscription(plan,customerId,subId){
     );
     _currentPlan=plan;
   }catch(e){}
+}
+
+async function manageSubscription(){
+  const u=_fbUser||window._auth?.currentUser;
+  if(!u){toast('Please sign in first','err');return;}
+  let customerId='';
+  try{
+    const snap=await window._fsGetDoc(window._fsDoc(window._db,'users',u.uid,'subscription','main'));
+    if(snap.exists())customerId=snap.data().stripeCustomerId||'';
+  }catch(e){}
+  if(!customerId){
+    toast('No active subscription found. Purchase a plan first.','err',5000);
+    openPlans();return;
+  }
+  const btn=document.getElementById('manage-sub-btn')||document.getElementById('prof-manage-btn');
+  if(btn){const orig=btn.textContent;btn.textContent='Opening…';btn.disabled=true;
+    setTimeout(()=>{btn.textContent=orig;btn.disabled=false;},5000);}
+  try{
+    const tok=await u.getIdToken();
+    const origin=window.location.origin||window.location.href.replace(/[^/]*$/,'');
+    const path=window.location.pathname||'/';
+    const res=await fetch(_backendUrl()+'/create-portal-session',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},
+      body:JSON.stringify({customer_id:customerId,return_url:origin+path})
+    });
+    if(!res.ok){const e=await res.json().catch(()=>({}));throw new Error(e.detail||'Portal error '+res.status);}
+    const data=await res.json();
+    if(data.url)window.location.href=data.url;
+    else throw new Error('No portal URL returned');
+  }catch(err){
+    toast('Billing portal error: '+err.message,'err',6000);
+    if(btn){btn.disabled=false;}
+  }
 }
 
 async function _handleStripeRedirect(){
@@ -1970,12 +2109,6 @@ function initPersona(){
   _set('persona-label',p.name);
 }
 
-function _buildSystemPrompt(){
-  const parts=[];
-  if(_personaBasePrompt)parts.push(_personaBasePrompt);
-  if(systemPrompt)parts.push(systemPrompt);
-  return parts.join('\n\n');
-}
 
 function togglePersonaPicker(){
   _personaPickerOpen=!_personaPickerOpen;
