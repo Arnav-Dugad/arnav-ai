@@ -105,8 +105,18 @@ const server = http.createServer(async (req, res) => {
   // POST /create-portal-session
   if (req.method === 'POST' && url === '/create-portal-session') {
     const body = await readBody(req);
-    const { customer_id, return_url } = body;
-    if (!customer_id) { json(res, 400, { detail: 'customer_id required' }); return; }
+    let { customer_id, return_url, user_email } = body;
+    customer_id = (customer_id || '').trim();
+
+    if (!customer_id && user_email) {
+      try {
+        const results = await stripe.customers.search({ query: `email:'${user_email}'`, limit: 1 });
+        if (results.data.length) customer_id = results.data[0].id;
+      } catch (e) { /* not fatal */ }
+    }
+
+    if (!customer_id) { json(res, 404, { detail: 'No Stripe customer found for this account.' }); return; }
+
     try {
       const session = await stripe.billingPortal.sessions.create({
         customer: customer_id,
