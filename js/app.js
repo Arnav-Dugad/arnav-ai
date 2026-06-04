@@ -323,7 +323,7 @@ async function loadFirestoreHistory(uid){
     allHistory=[];sessions={};
     snap.forEach(docSnap=>{
       const data=docSnap.data();
-      allHistory.push({id:data.id,title:data.title,ts:data.updatedAt?.seconds*1000||Date.now(),pinned:data.pinned||false});
+      allHistory.push({id:data.id,title:data.title,ts:data.updatedAt?.seconds*1000||Date.now(),pinned:data.pinned||false,color:data.color||null});
       sessions[data.id]={msgs:data.msgs||[],title:data.title};
     });
   }catch(e){
@@ -370,13 +370,15 @@ function _getDateGroup(ts){
 
 function _makeHistItem(item){
   const d=document.createElement('div');
-  d.className='hist-item'+(item.id===currentChatId?' on':'')+(item.pinned?' pinned':'');
+  d.className='hist-item'+(item.id===currentChatId?' on':'')+(item.pinned?' pinned':'')+(item.color?' has-label':'');
+  if(item.color)d.style.setProperty('--label-color',item.color);
   d.dataset.id=item.id;
   const pinIco=item.pinned?'<svg class="pin-icon" fill="currentColor" viewBox="0 0 24 24" width="10" height="10"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>':'';
   d.innerHTML=`<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
     <span class="hist-item-text" ondblclick="startRename(event,'${item.id}')">${esc(item.title)}</span>
     ${pinIco}
     <div class="hist-actions">
+      <button class="hist-color" onclick="openConvColorPicker(event,'${item.id}')" title="Add label"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z"/></svg></button>
       <button class="hist-pin" onclick="togglePin(event,'${item.id}')" title="${item.pinned?'Unpin':'Pin'}"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg></button>
       <button class="hist-del" onclick="delConversation(event,'${item.id}')"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
     </div>`;
@@ -444,6 +446,39 @@ async function togglePin(e,id){
     try{await window._fsSet(window._fsDoc(window._db,'users',currentUserId,'conversations',id),{pinned:h.pinned},{merge:true});}catch(err){}
   }
   toast(h.pinned?'Pinned':'Unpinned','info',1500);
+}
+
+// ══════════════════════════════════════
+// CONVERSATION COLOR LABELS
+// ══════════════════════════════════════
+let _colorPickerOpenId=null;
+function openConvColorPicker(e,id){
+  e.stopPropagation();
+  const old=document.getElementById('_ccp_dd');
+  if(old){old.remove();if(_colorPickerOpenId===id){_colorPickerOpenId=null;return;}}
+  _colorPickerOpenId=id;
+  const COLORS=[{hex:'',label:'Clear'},{hex:'#e06b6b',label:'Red'},{hex:'#e09a45',label:'Orange'},{hex:'#e0cc45',label:'Yellow'},{hex:'#4ecb8a',label:'Green'},{hex:'#4facfe',label:'Blue'},{hex:'#9d94ff',label:'Purple'}];
+  const dd=document.createElement('div');
+  dd.id='_ccp_dd';dd.className='conv-color-picker';
+  dd.innerHTML=COLORS.map(c=>c.hex
+    ?`<button class="ccp-swatch" style="background:${c.hex}" title="${c.label}" onclick="setConvColor('${id}','${c.hex}')"></button>`
+    :`<button class="ccp-swatch ccp-clear" title="${c.label}" onclick="setConvColor('${id}','')">✕</button>`
+  ).join('');
+  document.body.appendChild(dd);
+  const rect=e.currentTarget.getBoundingClientRect();
+  dd.style.top=(rect.bottom+4)+'px';
+  dd.style.left=Math.min(rect.left,window.innerWidth-180)+'px';
+  setTimeout(()=>document.addEventListener('click',_ccpOutside,{once:true}),10);
+}
+function _ccpOutside(){const dd=document.getElementById('_ccp_dd');if(dd)dd.remove();_colorPickerOpenId=null;}
+function setConvColor(id,color){
+  const dd=document.getElementById('_ccp_dd');if(dd)dd.remove();_colorPickerOpenId=null;
+  const h=allHistory.find(h=>h.id===id);if(!h)return;
+  h.color=color||null;renderHistory(allHistory);
+  if(currentUserId&&window._db){
+    try{window._fsSet(window._fsDoc(window._db,'users',currentUserId,'conversations',id),{color:color||null},{merge:true}).catch(()=>{});}catch(err){}
+  }
+  toast(color?'Label applied':'Label removed','info',1500);
 }
 
 async function delConversation(e,id){
@@ -870,6 +905,7 @@ function appendAIBubble(text,webUsed,msgIndex,elapsed){
       <button class="act-btn" onclick="copyText(this)"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>Copy</button>
       <button class="act-btn" id="spk${mid}" onclick="speakMsg('${mid}',this)"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072M12 6a7 7 0 010 12M8.464 8.464a5 5 0 000 7.072"/></svg>Read aloud</button>
       <button class="act-btn" onclick="regenLast()"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>Regenerate</button>
+      <button class="act-btn" onclick="forkChat(document.getElementById('${mid}').innerText)" title="Continue in new chat"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>Fork</button>
       <button class="act-btn${isBm?' bookmarked':''}" data-bm-key="${bmKey}" onclick="toggleBookmark('${currentChatId}',${msgIndex},document.getElementById('${mid}').innerText,this)">${bmBtnHtml(isBm)}</button>
       <div class="rate-group">
         <button class="act-btn rate-btn" onclick="rateMsg(1,this)" title="Helpful"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5"/></svg></button>
@@ -897,6 +933,15 @@ function useChip(el){
   const label=el.querySelector('.chip-label')?.textContent||el.textContent;
   const prompts={'Write & Edit':'Help me write a professional email','Explain & Learn':'Explain how machine learning works in simple terms','Brainstorm':'Give me 5 creative ideas for a personal project','Summarize':'Summarize the key points of a topic I describe'};
   $('cinput').value=prompts[label]||label;onInput($('cinput'));$('cinput').focus();
+}
+
+function forkChat(text){
+  newChat();
+  const snippet=text.length>400?text.slice(0,398)+'…':text;
+  const inp=$('cinput');
+  inp.value='Continue from this:\n\n'+snippet;
+  onInput(inp);inp.focus();
+  toast('Context pasted — edit and press Enter to send','ok',4000);
 }
 
 async function regenLast(){
@@ -995,6 +1040,7 @@ function _finishTypewriter(fullText,bodyEl,bubbleDiv,msgIndex){
     actDiv.innerHTML=`<button class="act-btn" onclick="copyText(this)"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>Copy</button>
       <button class="act-btn" id="spk${mid}" onclick="speakMsg('${mid}',this)"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072M12 6a7 7 0 010 12M8.464 8.464a5 5 0 000 7.072"/></svg>Read aloud</button>
       <button class="act-btn" onclick="regenLast()"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>Regenerate</button>
+      <button class="act-btn" onclick="forkChat(document.getElementById('${mid}').innerText)" title="Continue in new chat"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>Fork</button>
       <button class="act-btn${isBm?' bookmarked':''}" data-bm-key="${bmKey}" onclick="toggleBookmark('${_resolvedChatId}',${msgIndex},document.getElementById('${mid}').innerText,this)">${bmBtnHtml(isBm)}</button>
       <div class="rate-group">
         <button class="act-btn rate-btn" onclick="rateMsg(1,this)" title="Helpful"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5"/></svg></button>
@@ -1202,6 +1248,18 @@ function _shareText(){
   (msgs||[]).forEach(m=>{t+=`${m.role==='user'?'You':'Arnav AI'}: ${m.content}\n\n`;});
   return t;
 }
+function _htmlText(){
+  const dt=new Date().toLocaleString('en-US',{dateStyle:'medium',timeStyle:'short'});
+  const title=chatTitle||'Arnav AI Conversation';
+  let html=`<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="UTF-8"/>\n<title>${esc(title)}</title>\n<style>\nbody{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:760px;margin:40px auto;padding:0 24px;background:#07070e;color:#f0f0fa;line-height:1.65;}\nh1{font-size:20px;color:#9d94ff;margin-bottom:4px;letter-spacing:-.3px;}\n.meta{color:#6b6b9a;font-size:13px;margin-bottom:32px;}\n.msg-user{text-align:right;margin:20px 0;}\n.user-bubble{display:inline-block;background:#1a1a2e;border:1px solid rgba(255,255,255,.08);color:#f0f0fa;padding:11px 16px;border-radius:18px 18px 4px 18px;max-width:75%;text-align:left;white-space:pre-wrap;word-break:break-word;font-size:14px;}\n.msg-ai{margin:20px 0;}\n.ai-name{font-size:11px;color:#9d94ff;margin-bottom:6px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;}\n.ai-body{background:#0d0d18;border:1px solid rgba(255,255,255,.06);padding:14px 16px;border-radius:4px 18px 18px 18px;white-space:pre-wrap;word-break:break-word;font-size:14px;}\npre{background:#0b0b16;padding:12px 14px;border-radius:8px;overflow-x:auto;font-size:13px;font-family:monospace;margin:8px 0;}\ncode{font-family:'Consolas',monospace;font-size:13px;}\nhr{border:none;border-top:1px solid rgba(255,255,255,.06);margin:8px 0;}\n</style>\n</head>\n<body>\n`;
+  html+=`<h1>★ ${esc(title)}</h1>\n<div class="meta">Exported ${dt} · ${msgs.length} messages</div>\n`;
+  (msgs||[]).forEach(m=>{
+    if(m.role==='user'){html+=`<div class="msg-user"><div class="user-bubble">${esc(m.content)}</div></div>\n<hr/>\n`;}
+    else{html+=`<div class="msg-ai"><div class="ai-name">Arnav AI</div><div class="ai-body">${esc(m.content)}</div></div>\n<hr/>\n`;}
+  });
+  html+=`</body>\n</html>`;
+  return html;
+}
 function _markdownText(){
   const dt=new Date().toLocaleString('en-US',{dateStyle:'medium',timeStyle:'short'});
   let t=`# ${chatTitle||'Arnav AI Conversation'}\n\n*Exported on ${dt}*\n\n---\n\n`;
@@ -1223,6 +1281,12 @@ function doShare(type){
     a.download=((chatTitle||'chat').replace(/[^a-z0-9]/gi,'-').toLowerCase().slice(0,40)||'arnav-ai')+'.md';
     document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
     toast('Markdown downloaded!','ok');closeModalId('share-modal');
+  }else if(type==='html'){
+    const b=new Blob([_htmlText()],{type:'text/html;charset=utf-8'});
+    const url=URL.createObjectURL(b);const a=document.createElement('a');a.href=url;
+    a.download=((chatTitle||'chat').replace(/[^a-z0-9]/gi,'-').toLowerCase().slice(0,40)||'arnav-ai')+'.html';
+    document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+    toast('HTML downloaded!','ok');closeModalId('share-modal');
   }else if(type==='native'){
     if(navigator.share)navigator.share({title:chatTitle||'Arnav AI Chat',text:_shareText()}).catch(()=>{});
     else navigator.clipboard.writeText(_shareText()).then(()=>toast('Copied','info'));
@@ -1296,7 +1360,7 @@ async function saveEditMsg(idx){
 async function updateStats(isNewConv){
   if(!currentUserId||!window._db)return;
   try{
-    const ref=window._fsDoc(window._db,'users',currentUserId,'stats');
+    const ref=window._fsDoc(window._db,'users',currentUserId,'stats','main');
     const data={totalMessages:window._fsIncrement(1),lastActiveAt:window._fsTimestamp()};
     if(isNewConv)data.totalConversations=window._fsIncrement(1);
     await window._fsSet(ref,data,{merge:true});
@@ -1312,7 +1376,7 @@ async function openStats(){
   $('stats-modal').classList.add('on');
   if(currentUserId&&window._db){
     try{
-      const snap=await window._fsGetDoc(window._fsDoc(window._db,'users',currentUserId,'stats'));
+      const snap=await window._fsGetDoc(window._fsDoc(window._db,'users',currentUserId,'stats','main'));
       if(snap.exists()){const data=snap.data();if(data.totalMessages!=null)$('stat-msgs').textContent=data.totalMessages;if(data.totalConversations!=null)$('stat-convs').textContent=data.totalConversations;}
     }catch(e){}
   }
@@ -1383,7 +1447,7 @@ function _backendUrl(){
 async function loadSubscription(){
   if(!currentUserId||!window._db)return;
   try{
-    const snap=await window._fsGetDoc(window._fsDoc(window._db,'users',currentUserId,'subscription'));
+    const snap=await window._fsGetDoc(window._fsDoc(window._db,'users',currentUserId,'subscription','main'));
     _currentPlan=snap.exists()?snap.data().plan||'free':'free';
   }catch(e){_currentPlan='free';}
   _applyPlanUI(_currentPlan);
@@ -1527,7 +1591,7 @@ async function _persistSubscription(plan,customerId,subId){
   if(!currentUserId||!window._db)return;
   try{
     await window._fsSet(
-      window._fsDoc(window._db,'users',currentUserId,'subscription'),
+      window._fsDoc(window._db,'users',currentUserId,'subscription','main'),
       {plan,status:'active',stripeCustomerId:customerId||'',
        stripeSubscriptionId:subId||'',updatedAt:window._fsTimestamp()},
       {merge:true}
@@ -1681,7 +1745,7 @@ let _userProfile={};
 async function loadProfile(uid){
   if(!uid||!window._db)return;
   try{
-    const snap=await window._fsGetDoc(window._fsDoc(window._db,'users',uid,'profile'));
+    const snap=await window._fsGetDoc(window._fsDoc(window._db,'users',uid,'profile','main'));
     _userProfile=snap.exists()?snap.data():{};
   }catch(e){_userProfile={};}
   _updateStreak();
@@ -1696,7 +1760,7 @@ function _updateStreak(){
   streak=(_userProfile.lastActiveDate===yesterday)?streak+1:1;
   _userProfile.lastActiveDate=today;
   _userProfile.streak=streak;
-  window._fsSet(window._fsDoc(window._db,'users',currentUserId,'profile'),
+  window._fsSet(window._fsDoc(window._db,'users',currentUserId,'profile','main'),
     {lastActiveDate:today,streak},{merge:true}).catch(()=>{});
 }
 
@@ -1776,7 +1840,7 @@ function openProfile(){
 
     // Fetch Firestore stats async (non-blocking — fills in after modal opens)
     if(currentUserId&&window._db){
-      window._fsGetDoc(window._fsDoc(window._db,'users',currentUserId,'stats')).then(snap=>{
+      window._fsGetDoc(window._fsDoc(window._db,'users',currentUserId,'stats','main')).then(snap=>{
         if(snap&&snap.exists()){
           const d=snap.data();
           if(d.totalMessages!=null)st('prof-msgs-val',d.totalMessages);
@@ -1807,7 +1871,7 @@ async function saveProfile(){
 
     if(window._db){
       await window._fsSet(
-        window._fsDoc(window._db,'users',currentUserId,'profile'),
+        window._fsDoc(window._db,'users',currentUserId,'profile','main'),
         {displayName:newName,bio,location:loc,updatedAt:window._fsTimestamp()},
         {merge:true}
       );
@@ -1908,7 +1972,7 @@ document.addEventListener('click',e=>{
 // ══════════════════════════════════════
 // DAILY MESSAGE LIMIT (free tier)
 // ══════════════════════════════════════
-const FREE_MSG_LIMIT=30;
+const FREE_MSG_LIMIT=10;
 
 function _dailyKey(){return'arnav-daily-'+new Date().toISOString().slice(0,10);}
 
@@ -1966,6 +2030,66 @@ function _initFocusMode(){
     document.body.classList.add('focus-mode');
     $('focus-btn')?.classList.add('on');
   }
+}
+
+// ══════════════════════════════════════
+// SAVED PROMPTS LIBRARY
+// ══════════════════════════════════════
+let _savedPrompts=[];
+(function _loadSavedPrompts(){try{_savedPrompts=JSON.parse(localStorage.getItem('arnav-prompts')||'[]');}catch(e){_savedPrompts=[];}})();
+
+const _STARTER_PROMPTS=[
+  {id:'__sp1',label:'Explain simply',text:'Explain this concept in simple terms that a complete beginner would understand:'},
+  {id:'__sp2',label:'Professional email',text:'Write a professional, polite, and concise email about the following topic:'},
+  {id:'__sp3',label:'Brainstorm ideas',text:'Give me 10 creative and actionable ideas for:'},
+  {id:'__sp4',label:'Debug code',text:'Debug the following code, explain what is wrong, and provide the corrected version:'},
+  {id:'__sp5',label:'Summarize',text:'Provide a concise bullet-point summary of the key points from:'},
+  {id:'__sp6',label:'Improve writing',text:'Improve the following text to make it clearer, more engaging, and professional:'},
+  {id:'__sp7',label:'Pros & cons',text:'List the main pros and cons of:'},
+  {id:'__sp8',label:'Step-by-step guide',text:'Write a clear step-by-step guide on how to:'},
+];
+
+function openPrompts(){
+  _renderPromptsList('');
+  $('prompts-modal').classList.add('on');
+  setTimeout(()=>$('prompts-search')?.focus(),60);
+}
+
+function _renderPromptsList(filter){
+  const list=$('prompts-list');if(!list)return;
+  const all=[..._savedPrompts,..._STARTER_PROMPTS.filter(sp=>!_savedPrompts.find(p=>p.id===sp.id))];
+  const q=(filter||'').toLowerCase();
+  const filtered=q?all.filter(p=>p.text.toLowerCase().includes(q)||p.label.toLowerCase().includes(q)):all;
+  if(!filtered.length){list.innerHTML='<div class="prompts-empty">No matching templates.</div>';return;}
+  list.innerHTML='';
+  filtered.forEach(p=>{
+    const d=document.createElement('div');d.className='prompt-item';
+    const isDefault=p.id.startsWith('__sp');
+    d.innerHTML=`<div class="prompt-item-inner"><div class="prompt-item-label">${esc(p.label)}</div><div class="prompt-item-text">${esc(p.text)}</div></div>${!isDefault?`<button class="prompt-del" title="Delete" onclick="deletePrompt(event,'${p.id}')"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="12" height="12"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>`:''}`;
+    d.querySelector('.prompt-item-inner').addEventListener('click',()=>{
+      $('cinput').value=p.text;onInput($('cinput'));$('cinput').focus();closeModalId('prompts-modal');
+    });
+    list.appendChild(d);
+  });
+}
+
+function saveCurrentAsPrompt(){
+  const text=($('cinput').value||'').trim();
+  if(!text){toast('Type a message first to save as a template','err');return;}
+  const label=text.length>32?text.slice(0,30)+'…':text;
+  const p={id:genId(),label,text,createdAt:Date.now()};
+  _savedPrompts.unshift(p);
+  localStorage.setItem('arnav-prompts',JSON.stringify(_savedPrompts));
+  toast('Template saved ★','ok',2000);
+  _renderPromptsList($('prompts-search')?.value||'');
+}
+
+function deletePrompt(e,id){
+  e.stopPropagation();
+  _savedPrompts=_savedPrompts.filter(p=>p.id!==id);
+  localStorage.setItem('arnav-prompts',JSON.stringify(_savedPrompts));
+  _renderPromptsList($('prompts-search')?.value||'');
+  toast('Template removed','info',1500);
 }
 
 // ── init ──
