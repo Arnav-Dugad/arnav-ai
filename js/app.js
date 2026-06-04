@@ -586,10 +586,35 @@ function loadChat(id){
 }
 
 // ── input mode toggles ──
+function _updateWebBtn(){
+  const btn=$('btn-web');if(!btn)return;
+  const lbl=btn.querySelector('.btn-label');if(!lbl)return;
+  if(webSearchMode&&_currentPlan==='free'){
+    const used=_getDailyWebCount();
+    const rem=Math.max(0,FREE_WEB_LIMIT-used);
+    lbl.textContent='Web · '+rem;
+    btn.title='Web search ('+used+'/'+FREE_WEB_LIMIT+' searches used today)';
+  }else{
+    lbl.textContent='Search';
+    btn.title='Web search mode (Ctrl+Shift+W)';
+  }
+}
+
 function toggleWebMode(){
+  if(!webSearchMode&&_currentPlan==='free'&&_getDailyWebCount()>=FREE_WEB_LIMIT){
+    toast('Daily web search limit reached ('+FREE_WEB_LIMIT+'/day). Upgrade for unlimited! 🌐','err',5000);
+    setTimeout(openPlans,800);
+    return;
+  }
   webSearchMode=!webSearchMode;
   $('btn-web').classList.toggle('on',webSearchMode);
-  toast(webSearchMode?'🌐 Web search enabled':'Web search off','info');
+  _updateWebBtn();
+  if(webSearchMode){
+    const info=_currentPlan==='free'?' · '+Math.max(0,FREE_WEB_LIMIT-_getDailyWebCount())+'/'+FREE_WEB_LIMIT+' remaining':'';
+    toast('🌐 Web search on'+info,'info');
+  }else{
+    toast('Web search off','info');
+  }
 }
 function toggleCodeMode(){
   codeMode=!codeMode;
@@ -647,6 +672,7 @@ document.addEventListener('keydown',e=>{
   if((e.ctrlKey||e.metaKey)&&e.key===','){e.preventDefault();openSettings();return;}
   if((e.ctrlKey||e.metaKey)&&e.key==='/'){e.preventDefault();openShortcuts();return;}
   if((e.ctrlKey||e.metaKey)&&e.shiftKey&&(e.key==='f'||e.key==='F')){e.preventDefault();toggleFocusMode();return;}
+  if((e.ctrlKey||e.metaKey)&&e.shiftKey&&(e.key==='w'||e.key==='W')){e.preventDefault();toggleWebMode();return;}
   if((e.ctrlKey||e.metaKey)&&e.key==='f'){e.preventDefault();openConvSearch();return;}
 });
 
@@ -867,7 +893,17 @@ function rateMsg(val,btn){
 }
 
 function renderUserBubbleHtml(text,idx){
-  return `<span class="user-bubble-text">${esc(text)}</span><button class="user-edit-btn" onclick="startEditMsg(${idx})" title="Edit message"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="12" height="12"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>`;
+  return `<span class="user-bubble-text">${esc(text)}</span>
+    <button class="user-copy-btn" onclick="copyUserMsg(this)" title="Copy"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="11" height="11"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg></button>
+    <button class="user-edit-btn" onclick="startEditMsg(${idx})" title="Edit message"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="12" height="12"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>`;
+}
+function copyUserMsg(btn){
+  const text=btn.closest('.user-bubble').querySelector('.user-bubble-text').textContent;
+  navigator.clipboard.writeText(text).then(()=>{
+    const orig=btn.innerHTML;
+    btn.innerHTML='<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="11" height="11"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>';
+    setTimeout(()=>{btn.innerHTML=orig;},2000);
+  });
 }
 
 function appendUserBubble(text,msgIndex){
@@ -919,11 +955,12 @@ function appendAIBubble(text,webUsed,msgIndex,elapsed){
   return d;
 }
 
-function showTyping(){
+function showTyping(webSearch){
   const e=$('empty-state');if(e)e.remove();
   const d=document.createElement('div');d.className='typing-msg';d.id='typing';
+  const label=webSearch?'<span class="thinking-web">🔍 Searching web…</span>':'Thinking…';
   d.innerHTML=`<div class="ai-ava"><svg viewBox="0 0 20 20" fill="none"><path d="M10 2L12.2 7.5H18L13.5 10.8L15.3 16.5L10 13.2L4.7 16.5L6.5 10.8L2 7.5H7.8L10 2Z" fill="white"/></svg></div>
-  <div><div class="typing-dots"><div class="tdot"></div><div class="tdot"></div><div class="tdot"></div></div><div class="thinking-label">Thinking…</div></div>`;
+  <div><div class="typing-dots"><div class="tdot"></div><div class="tdot"></div><div class="tdot"></div></div><div class="thinking-label">${label}</div></div>`;
   $('msgs-inner').appendChild(d);scrollDown();
 }
 function hideTyping(){const t=$('typing');if(t)t.remove();}
@@ -958,6 +995,18 @@ async function sendMsg(){
   if(busy)return;
   const inp=$('cinput'),text=inp.value.trim();if(!text)return;
   if(!_checkDailyLimit())return;
+  // Web search limit check
+  if(webSearchMode){
+    if(_currentPlan==='free'&&_getDailyWebCount()>=FREE_WEB_LIMIT){
+      webSearchMode=false;
+      $('btn-web').classList.remove('on');
+      _updateWebBtn();
+      toast('Web search limit reached ('+FREE_WEB_LIMIT+'/day). Sending without web search. Upgrade for unlimited! 🌐','err',6000);
+    }else{
+      _incDailyWebCount();
+      _updateWebBtn();
+    }
+  }
   if(navigator.vibrate)navigator.vibrate(5);
   _saveInputHistory(text);
   inp.value='';inp.style.height='auto';clearDraft();$('send-btn').disabled=true;$('char-count').textContent='0 / 2000';
@@ -1076,9 +1125,10 @@ async function callAPI(text,isNew){
   const _cId   = currentChatId;  // chat this response belongs to
   const _cMsgs = msgs;            // reference — survives reassignment of global `msgs`
   const _cTitle = chatTitle;
+  const _webSearch = webSearchMode; // capture before any await
   const _onThisChat=()=>currentChatId===_cId;
 
-  if(_onThisChat())showTyping();
+  if(_onThisChat())showTyping(_webSearch);
 
   const _t0=Date.now();
   let _streamStarted=false;
@@ -1973,18 +2023,28 @@ document.addEventListener('click',e=>{
 // DAILY MESSAGE LIMIT (free tier)
 // ══════════════════════════════════════
 const FREE_MSG_LIMIT=10;
+const FREE_WEB_LIMIT=30;
 
 function _dailyKey(){return'arnav-daily-'+new Date().toISOString().slice(0,10);}
+function _dailyWebKey(){return'arnav-web-'+new Date().toISOString().slice(0,10);}
 
 function _getDailyCount(){
   return parseInt(localStorage.getItem(_dailyKey())||'0',10);
+}
+function _getDailyWebCount(){
+  return parseInt(localStorage.getItem(_dailyWebKey())||'0',10);
 }
 
 function _incDailyCount(){
   const k=_dailyKey(),n=_getDailyCount()+1;
   localStorage.setItem(k,n);
-  // prune old keys
   try{Object.keys(localStorage).filter(x=>x.startsWith('arnav-daily-')&&x!==k).forEach(x=>localStorage.removeItem(x));}catch(e){}
+  return n;
+}
+function _incDailyWebCount(){
+  const k=_dailyWebKey(),n=_getDailyWebCount()+1;
+  localStorage.setItem(k,n);
+  try{Object.keys(localStorage).filter(x=>x.startsWith('arnav-web-')&&x!==k).forEach(x=>localStorage.removeItem(x));}catch(e){}
   return n;
 }
 
