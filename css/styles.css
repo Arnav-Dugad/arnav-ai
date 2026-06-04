@@ -1341,3 +1341,121 @@ kbd{background:var(--bg3);border:1px solid var(--border2);border-radius:4px;padd
   animation:webPulse 1.4s ease-in-out infinite;
 }
 @keyframes webPulse{0%,100%{opacity:1;}50%{opacity:.55;}}
+.thinking-code{color:#4ecb8a;font-weight:500;animation:webPulse 1.4s ease-in-out infinite;}
+
+/* ══════════════════════════════════════
+   FOLLOW-UP SUGGESTION CHIPS
+══════════════════════════════════════ */
+.followup-chips{
+  display:flex;flex-wrap:wrap;gap:6px;
+  padding:10px 0 4px;margin-top:4px;
+  border-top:1px solid var(--border);
+  position:relative;
+}
+.followup-chip{
+  background:var(--bg3);border:1px solid var(--border2);
+  border-radius:50px;color:var(--text2);
+  font-family:var(--sans);font-size:12px;
+  padding:5px 12px;cursor:pointer;
+  transition:all .2s;white-space:nowrap;
+}
+.followup-chip:hover{background:var(--glow2);border-color:var(--accent);color:var(--accent2);}
+.followup-close{
+  background:none;border:none;cursor:pointer;
+  color:var(--text3);padding:4px;margin-left:auto;
+  display:flex;align-items:center;transition:color .2s;
+}
+.followup-close:hover{color:var(--text);}
+
+/* ══════════════════════════════════════
+   ARTIFACTS / CODE PREVIEW MODAL
+══════════════════════════════════════ */
+.preview-modal-inner{
+  width:min(90vw,1000px)!important;
+  max-width:min(90vw,1000px)!important;
+  height:min(85vh,700px);
+  max-height:min(85vh,700px);
+  display:flex;flex-direction:column;
+}
+.preview-body{
+  flex:1;display:flex;overflow:hidden;
+  border-radius:0 0 var(--r2) var(--r2);
+}
+.preview-iframe{
+  width:100%;height:100%;border:none;
+  background:#fff;border-radius:0 0 var(--r2) var(--r2);
+}
+.preview-newtab-btn{
+  background:var(--bg3);border:1px solid var(--border2);
+  border-radius:var(--r);color:var(--text2);
+  font-family:var(--sans);font-size:12px;
+  padding:5px 10px;cursor:pointer;
+  display:flex;align-items:center;gap:5px;
+  transition:all .2s;margin-right:6px;flex-shrink:0;
+}
+.preview-newtab-btn:hover{background:var(--bg2);color:var(--text);}
+.code-preview-btn{
+  color:var(--accent2)!important;
+  border-color:rgba(107,94,248,.3)!important;
+  background:var(--glow2)!important;
+}
+.code-preview-btn:hover{background:rgba(107,94,248,.2)!important;}
+
+/* ══════════════════════════════════════
+   MANAGE SUBSCRIPTION ROW
+══════════════════════════════════════ */
+.manage-sub-row{
+  text-align:center;padding:16px 0 4px;
+}
+.manage-sub-divider{height:1px;background:var(--border);margin:0 0 16px;}
+.manage-sub-btn{
+  background:var(--bg3);border:1px solid var(--border2);
+  border-radius:var(--r);color:var(--text);
+  font-family:var(--sans);font-size:13px;font-weight:500;
+  padding:10px 18px;cursor:pointer;
+  display:inline-flex;align-items:center;gap:7px;
+  transition:all .2s;
+}
+.manage-sub-btn:hover{background:var(--bg2);border-color:var(--border3);}
+.manage-sub-note{font-size:11px;color:var(--text3);margin-top:7px;line-height:1.5;}
+.prof-manage-btn{
+  background:var(--bg3);border:1px solid var(--border2);
+  border-radius:var(--r);color:var(--text2);
+  font-family:var(--sans);font-size:12px;
+  padding:8px 14px;cursor:pointer;
+  display:flex;align-items:center;gap:6px;
+  transition:all .2s;
+}
+.prof-manage-btn:hover{background:var(--bg2);color:var(--text);}
+
+/* ══════════════════════════════════════
+   MOBILE — INPUT TOOLBAR OVERFLOW FIX
+══════════════════════════════════════ */
+@media(max-width:720px){
+  .input-topbar{
+    overflow-x:auto;
+    scrollbar-width:none;
+    -ms-overflow-style:none;
+    flex-wrap:nowrap;
+    padding-bottom:2px;
+  }
+  .input-topbar::-webkit-scrollbar{display:none;}
+  .input-topbar .itb-spacer{display:none;}
+  .input-topbar .char-count{display:none;}
+  /* Keep persona label visible on mobile — it fits since others hide labels */
+  .persona-btn .btn-label{display:inline!important;}
+  /* Ensure each itb-btn has a proper touch target */
+  .itb-btn{min-width:36px;min-height:36px;flex-shrink:0;}
+  /* Make AI action buttons scrollable row on mobile */
+  .ai-actions{overflow-x:auto;flex-wrap:nowrap;scrollbar-width:none;padding-bottom:3px;}
+  .ai-actions::-webkit-scrollbar{display:none;}
+  /* Follow-up chips scroll on mobile */
+  .followup-chips{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;}
+  .followup-chips::-webkit-scrollbar{display:none;}
+  /* Preview modal full-screen on mobile */
+  .preview-modal-inner{width:100vw!important;max-width:100vw!important;height:100vh!important;max-height:100vh!important;border-radius:0!important;}
+  /* Manage sub note compact */
+  .manage-sub-note{font-size:10px;}
+  /* Topbar — hide share and focus buttons label, keep icons */
+  .upgrade-topbar-btn span{display:none;}
+}
