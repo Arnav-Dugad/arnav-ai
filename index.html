@@ -452,6 +452,9 @@
         <button class="share-btn" onclick="doShare('html')">
           <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>.html
         </button>
+        <button class="share-btn" onclick="doShare('print')">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>Print
+        </button>
         <button class="share-btn" onclick="doShare('native')">
           <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>Share
         </button>
@@ -605,6 +608,10 @@
         <button class="prof-upgrade-btn" id="prof-upgrade-btn" onclick="closeModalId('profile-modal');openPlans()" style="display:none">
           <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="13" height="13"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
           Upgrade Plan
+        </button>
+        <button class="prof-manage-btn" id="prof-manage-btn" onclick="manageSubscription()" style="display:none">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="13" height="13"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
+          Manage Subscription
         </button>
         <button class="prof-signout-btn" onclick="doSignOut();closeModalId('profile-modal')">
           <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="13" height="13"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
@@ -767,6 +774,16 @@
         <details class="faq-item"><summary>What happens if I hit the free message limit?</summary><p>You'll see a prompt to upgrade. Your conversation history is always saved and accessible after upgrading.</p></details>
       </div>
 
+      <!-- Manage subscription row — shown when user has active plan -->
+      <div class="manage-sub-row" id="manage-sub-row" style="display:none">
+        <div class="manage-sub-divider"></div>
+        <button class="manage-sub-btn" id="manage-sub-btn" onclick="manageSubscription()">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
+          Manage / Cancel Subscription
+        </button>
+        <p class="manage-sub-note">Opens Stripe Customer Portal — cancel anytime, changes take effect at period end.</p>
+      </div>
+
       <div class="pricing-footer-note">
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="13" height="13"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
         Payments secured by Stripe. No credit card required for the free plan.
@@ -805,6 +822,24 @@
     <div class="checkout-spinner"></div>
     <div class="checkout-overlay-title">Redirecting to Stripe…</div>
     <div class="checkout-overlay-sub">You'll be taken to a secure checkout page.</div>
+  </div>
+</div>
+
+<!-- PREVIEW / ARTIFACTS MODAL -->
+<div class="modal-bg" id="preview-modal" onclick="if(event.target.id==='preview-modal')closeModalId('preview-modal')">
+  <div class="modal preview-modal-inner">
+    <div class="modal-head">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="17" height="17" style="color:var(--accent2);flex-shrink:0"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+      <span class="modal-title">Preview</span>
+      <button class="preview-newtab-btn" onclick="openPreviewNewTab()" title="Open in new tab">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="13" height="13"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+        New tab
+      </button>
+      <button class="modal-close" onclick="closeModalId('preview-modal')"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+    </div>
+    <div class="preview-body">
+      <iframe id="preview-iframe" sandbox="allow-scripts allow-same-origin" class="preview-iframe" title="Code preview"></iframe>
+    </div>
   </div>
 </div>
 
