@@ -102,6 +102,23 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // POST /create-portal-session
+  if (req.method === 'POST' && url === '/create-portal-session') {
+    const body = await readBody(req);
+    const { customer_id, return_url } = body;
+    if (!customer_id) { json(res, 400, { detail: 'customer_id required' }); return; }
+    try {
+      const session = await stripe.billingPortal.sessions.create({
+        customer: customer_id,
+        return_url: return_url || 'http://localhost:5500',
+      });
+      json(res, 200, { url: session.url });
+    } catch (err) {
+      json(res, 400, { detail: err.message });
+    }
+    return;
+  }
+
   // Health check
   if (req.method === 'GET' && url === '/health') {
     json(res, 200, { status: 'ok', server: 'Arnav AI Stripe Server' }); return;
