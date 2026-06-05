@@ -65,7 +65,7 @@ function applyTheme(name){
 applyTheme(localStorage.getItem('arnav-theme')||'dark');
 
 // ── settings state ──
-const settings={tts:false,sound:false,compact:false,scroll:true,lines:false};
+const settings={tts:false,sound:false,compact:false,scroll:true,lines:false,alwaysNewChat:false};
 function loadSettings(){
   try{const s=JSON.parse(localStorage.getItem('arnav-settings')||'{}');Object.assign(settings,s);}catch(e){}
   Object.keys(settings).forEach(k=>{if(settings[k])$('tog-'+k)?.classList.add('on');});
@@ -77,7 +77,7 @@ function loadSettings(){
 function saveSettings(){localStorage.setItem('arnav-settings',JSON.stringify(settings));}
 function resetSettings(){
   const hadLines=settings.lines;
-  const defaults={tts:false,sound:false,compact:false,scroll:true,lines:false};
+  const defaults={tts:false,sound:false,compact:false,scroll:true,lines:false,alwaysNewChat:false};
   Object.assign(settings,defaults);
   Object.keys(defaults).forEach(k=>{$('tog-'+k)?.classList.toggle('on',defaults[k]);});
   document.body.classList.remove('compact-mode');
@@ -195,7 +195,9 @@ function onLogin(u){
   _initFocusMode();
   _initDragDrop();
   _handleStripeRedirect();
+  _saveUserMeta(u);
   setTimeout(showWelcome,700);
+  setTimeout(()=>{if(window.location.hash==='#admin')_tryOpenAdmin();},800);
 }
 
 // ── tab switch ──
@@ -335,7 +337,7 @@ async function loadFirestoreHistory(uid){
     try{allHistory=JSON.parse(localStorage.getItem('arnav-history')||'[]');}catch(e2){allHistory=[];}
   }
   renderHistory(allHistory);
-  restoreLastChat();
+  if(!settings.alwaysNewChat)restoreLastChat();
 }
 
 function restoreLastChat(){
@@ -1386,7 +1388,7 @@ async function sendMsg(){
   appendUserBubble(msgContent,msgs.length-1,imageAttach);
   // Save to sessions IMMEDIATELY so the chat is navigable while generating
   sessions[currentChatId]={msgs:[...msgs],title:chatTitle};
-  updateStats(isNew);
+  updateStats(isNew,{webSearch:webSearchMode,modelId:_activeModelId});
   _incDailyCount();renderDailyBar();
   await callAPI(msgContent,isNew,imageAttach);
 }
@@ -1560,6 +1562,7 @@ async function callAPI(text,isNew,_images){
     _cMsgs.push({role:'assistant',content:reply});
     sessions[_cId]={msgs:[..._cMsgs],title:sessions[_cId]?.title||_cTitle};
     saveConversation(_cId,false);
+    _trackResponseStats(reply);
 
     if(_onThisChat()){
       // User is still on this chat — stream the reply into the DOM
@@ -2059,13 +2062,29 @@ async function saveEditMsg(idx){
 // ══════════════════════════════════════
 // USAGE STATS — Firestore synced
 // ══════════════════════════════════════
-async function updateStats(isNewConv){
+async function updateStats(isNewConv,opts={}){
   if(!currentUserId||!window._db)return;
   try{
+    const today=new Date().toISOString().slice(0,10);
     const ref=window._fsDoc(window._db,'users',currentUserId,'stats','main');
-    const data={totalMessages:window._fsIncrement(1),lastActiveAt:window._fsTimestamp()};
+    const data={
+      totalMessages:window._fsIncrement(1),
+      lastActiveAt:window._fsTimestamp(),
+      [`dailyActivity.${today}`]:window._fsIncrement(1)
+    };
     if(isNewConv)data.totalConversations=window._fsIncrement(1);
+    if(opts.webSearch)data.totalWebSearches=window._fsIncrement(1);
+    if(opts.modelId)data[`modelsUsed.${opts.modelId}`]=window._fsIncrement(1);
     await window._fsSet(ref,data,{merge:true});
+  }catch(e){}
+}
+async function _trackResponseStats(text){
+  if(!currentUserId||!window._db||!text)return;
+  try{
+    const words=text.trim().split(/\s+/).filter(w=>w).length;
+    const tokens=Math.ceil(text.length/4);
+    const ref=window._fsDoc(window._db,'users',currentUserId,'stats','main');
+    await window._fsSet(ref,{wordsGenerated:window._fsIncrement(words),totalTokensEstimated:window._fsIncrement(tokens)},{merge:true});
   }catch(e){}
 }
 async function openStats(){
@@ -2079,9 +2098,42 @@ async function openStats(){
   if(currentUserId&&window._db){
     try{
       const snap=await window._fsGetDoc(window._fsDoc(window._db,'users',currentUserId,'stats','main'));
-      if(snap.exists()){const data=snap.data();if(data.totalMessages!=null)$('stat-msgs').textContent=data.totalMessages;if(data.totalConversations!=null)$('stat-convs').textContent=data.totalConversations;}
+      if(snap.exists()){
+        const d=snap.data();
+        if(d.totalMessages!=null)$('stat-msgs').textContent=d.totalMessages.toLocaleString();
+        if(d.totalConversations!=null)$('stat-convs').textContent=d.totalConversations;
+        if(d.wordsGenerated!=null)$('stat-words').textContent=d.wordsGenerated.toLocaleString();
+        if(d.totalWebSearches!=null)$('stat-searches').textContent=d.totalWebSearches.toLocaleString();
+        if(d.totalTokensEstimated!=null)$('stat-tokens').textContent=(d.totalTokensEstimated>=1000?(d.totalTokensEstimated/1000).toFixed(1)+'K':d.totalTokensEstimated);
+        if(d.modelsUsed){
+          const top=Object.entries(d.modelsUsed).sort((a,b)=>b[1]-a[1])[0];
+          if(top){const n=_API_PROVIDERS[top[0]]?.name||(top[0]==='arnav'?'Arnav AI':top[0]);$('stat-top-model').textContent=n;}
+        }
+        if(d.dailyActivity)_renderActivityChart(d.dailyActivity,$('stats-activity-chart'),30);
+      }
     }catch(e){}
   }
+}
+function _renderActivityChart(activityMap,container,days){
+  if(!container)return;
+  const today=new Date();
+  const bars=[];
+  for(let i=days-1;i>=0;i--){
+    const d=new Date(today);d.setDate(d.getDate()-i);
+    const key=d.toISOString().slice(0,10);
+    bars.push({key,count:activityMap[key]||0});
+  }
+  const maxCount=Math.max(1,...bars.map(b=>b.count));
+  container.innerHTML='';
+  bars.forEach(b=>{
+    const pct=Math.round((b.count/maxCount)*100);
+    const bar=document.createElement('div');
+    bar.className='stats-activity-bar';
+    bar.style.height=Math.max(2,pct)+'%';
+    bar.title=b.key+': '+b.count+' msg'+(b.count!==1?'s':'');
+    if(b.count===0)bar.style.opacity='0.2';
+    container.appendChild(bar);
+  });
 }
 
 // ══════════════════════════════════════
@@ -2156,7 +2208,7 @@ async function loadSubscription(){
 }
 
 function _applyPlanUI(plan){
-  _currentPlan=plan;
+  _currentPlan=plan;_lastSyncedPlan=null;
   const badge=$('u-plan-badge');
   if(badge){
     if(plan==='plus'){badge.textContent='⚡ Plus';badge.className='u-plan-badge plus';badge.style.display='';}
@@ -2185,12 +2237,19 @@ function openPlans(){
   $('pricing-modal').classList.add('on');
 }
 
+let _planCardsCache=null,_lastSyncedPlan=null;
 function _syncPlanCards(){
+  if(_lastSyncedPlan===_currentPlan)return;
+  _lastSyncedPlan=_currentPlan;
+  if(!_planCardsCache){
+    _planCardsCache={};
+    ['free','plus','pro'].forEach(p=>{
+      _planCardsCache[p]={card:$('plan-card-'+p),badge:$('badge-'+p),cta:$('cta-'+p)};
+    });
+  }
   const plans=['free','plus','pro'];
   plans.forEach(p=>{
-    const card=$('plan-card-'+p);
-    const badge=$('badge-'+p);
-    const cta=$('cta-'+p);
+    const {card,badge,cta}=_planCardsCache[p]||{};
     if(!card)return;
     const isCurrent=p===_currentPlan;
     card.classList.toggle('plan-active',isCurrent);
@@ -2633,8 +2692,11 @@ function openProfile(){
       window._fsGetDoc(window._fsDoc(window._db,'users',currentUserId,'stats','main')).then(snap=>{
         if(snap&&snap.exists()){
           const d=snap.data();
-          if(d.totalMessages!=null)st('prof-msgs-val',d.totalMessages);
+          if(d.totalMessages!=null)st('prof-msgs-val',d.totalMessages.toLocaleString());
           if(d.totalConversations!=null)st('prof-convs-val',d.totalConversations);
+          if(d.wordsGenerated!=null)st('prof-words-val',d.wordsGenerated>=1000?(d.wordsGenerated/1000).toFixed(1)+'K':d.wordsGenerated);
+          if(d.totalWebSearches!=null)st('prof-searches-val',d.totalWebSearches);
+          if(d.dailyActivity)_renderActivityChart(d.dailyActivity,document.getElementById('prof-activity-chart'),14);
         }
       }).catch(()=>{});
     }
@@ -2892,17 +2954,19 @@ function _saveApiKeysToStorage(){
 }
 
 function _updateModelSelector(){
-  const nameEl=$('model-name'),dotEl=$('model-dot');
+  const nameEl=$('model-name'),dotEl=$('model-dot'),subEl=$('model-sub');
   if(!nameEl)return;
   if(_activeModelId==='arnav'){
     nameEl.textContent=window.MODEL||'Arnav AI';
-    if(dotEl){dotEl.style.background='';dotEl.style.boxShadow='';}
+    if(subEl)subEl.textContent='Default';
+    if(dotEl){dotEl.style.background='var(--accent)';dotEl.style.boxShadow='0 0 6px var(--accent)88';}
     return;
   }
   const prov=_API_PROVIDERS[_activeModelId];
   const kc=_apiKeys[_activeModelId];
   const modelLabel=prov?.models.find(m=>m.id===kc?.model)?.label||kc?.model||prov?.name||_activeModelId;
   nameEl.textContent=modelLabel;
+  if(subEl)subEl.textContent=prov?.name||_activeModelId;
   if(dotEl&&prov?.color){
     dotEl.style.background=prov.color;
     dotEl.style.boxShadow='0 0 5px '+prov.color+'99';
@@ -3157,3 +3221,315 @@ function deletePrompt(e,id){
 
 // ── init ──
 $('cinput').addEventListener('input',function(){_updateSendBtn();});
+
+// ══════════════════════════════════════
+// ADMIN PANEL
+// ══════════════════════════════════════
+const _ADMIN_EMAIL='arnavrival12@gmail.com';
+let _adminUnlocked=false,_adminClickCount=0,_adminClickTimer=null;
+let _adminUsersCache=null,_adminCurrentSection='overview';
+
+async function _saveUserMeta(u){
+  if(!u||!window._db)return;
+  try{
+    await window._fsSet(
+      window._fsDoc(window._db,'users',u.uid),
+      {uid:u.uid,email:u.email||'',displayName:u.displayName||'',lastLogin:window._fsTimestamp()},
+      {merge:true}
+    );
+  }catch(e){}
+}
+
+function _adminBrandClick(){
+  _adminClickCount++;
+  clearTimeout(_adminClickTimer);
+  _adminClickTimer=setTimeout(()=>{_adminClickCount=0;},3000);
+  if(_adminClickCount>=5){_adminClickCount=0;_tryOpenAdmin();}
+}
+
+function _tryOpenAdmin(){
+  const u=_fbUser||window._auth?.currentUser;
+  if(!u){toast('Sign in first','err');return;}
+  if(u.email!==_ADMIN_EMAIL){toast('Not authorized','err');return;}
+  if(_adminUnlocked){_showAdminPanel();return;}
+  const saved=localStorage.getItem('arnav-admin-key')||'8574';
+  const code=prompt('Enter admin passcode:');
+  if(code===null)return;
+  if(code!==saved){toast('Wrong passcode','err');return;}
+  _adminUnlocked=true;
+  _showAdminPanel();
+}
+
+function _showAdminPanel(){
+  const panel=$('admin-panel');if(!panel)return;
+  panel.style.display='flex';
+  const uinfo=$('admin-user-info');
+  if(uinfo){const u=_fbUser||window._auth?.currentUser;uinfo.textContent=u?.email||'';}
+  window.history.replaceState({},'',window.location.pathname+'#admin');
+  adminNav('overview');
+}
+
+function closeAdmin(){
+  const panel=$('admin-panel');if(panel)panel.style.display='none';
+  window.history.replaceState({},'',window.location.pathname);
+  _adminUsersCache=null;
+}
+
+function adminNav(section){
+  _adminCurrentSection=section;
+  document.querySelectorAll('.admin-nav-btn').forEach(b=>{
+    b.classList.toggle('active',b.dataset.section===section);
+  });
+  const main=$('admin-main');if(!main)return;
+  main.innerHTML='<div class="admin-loading"><div class="admin-spinner"></div>Loading…</div>';
+  switch(section){
+    case 'overview': _adminRenderOverview();break;
+    case 'users':    _adminRenderUsers();break;
+    case 'subs':     _adminRenderSubs();break;
+    case 'activity': _adminRenderActivity();break;
+    case 'health':   _adminRenderHealth();break;
+    case 'settings': _adminRenderSettings();break;
+  }
+}
+
+async function _adminFetchUsers(){
+  if(_adminUsersCache)return _adminUsersCache;
+  try{
+    const tok=await (_fbUser||window._auth.currentUser).getIdToken();
+    const res=await fetch(_backendUrl()+'/admin/users',{headers:{Authorization:'Bearer '+tok}});
+    if(!res.ok){
+      const err=await res.json().catch(()=>({}));
+      if(res.status===403){
+        return {error:'permission',msg:'Firestore rules need to allow admin reads. See Admin → Settings for instructions.'};
+      }
+      return {error:'fetch',msg:err.detail||'Load failed ('+res.status+')'};
+    }
+    const data=await res.json();
+    _adminUsersCache=data.users||[];
+    return _adminUsersCache;
+  }catch(e){return {error:'network',msg:e.message};}
+}
+
+async function _adminRenderOverview(){
+  const main=$('admin-main');if(!main)return;
+  const users=await _adminFetchUsers();
+  const hasErr=users&&users.error;
+  const list=hasErr?[]:users;
+
+  const total=list.length;
+  const plus=list.filter(u=>u.plan==='plus').length;
+  const pro=list.filter(u=>u.plan==='pro').length;
+  const totalMsgs=list.reduce((s,u)=>s+(u.stat_totalMessages||0),0);
+  const totalWords=list.reduce((s,u)=>s+(u.stat_wordsGenerated||0),0);
+
+  let healthHtml='<span class="admin-badge-status loading">Checking…</span>';
+
+  main.innerHTML=`
+    <div class="admin-section-title">Overview</div>
+    ${hasErr?`<div class="admin-warn">${users.msg}</div>`:''}
+    <div class="admin-kpi-grid">
+      <div class="admin-kpi"><div class="admin-kpi-val">${total}</div><div class="admin-kpi-lbl">Total users</div></div>
+      <div class="admin-kpi"><div class="admin-kpi-val">${totalMsgs.toLocaleString()}</div><div class="admin-kpi-lbl">Messages sent</div></div>
+      <div class="admin-kpi"><div class="admin-kpi-val">${(totalWords/1000).toFixed(1)}K</div><div class="admin-kpi-lbl">Words generated</div></div>
+      <div class="admin-kpi"><div class="admin-kpi-val">${plus}</div><div class="admin-kpi-lbl">Plus subscribers</div></div>
+      <div class="admin-kpi"><div class="admin-kpi-val">${pro}</div><div class="admin-kpi-lbl">Pro subscribers</div></div>
+      <div class="admin-kpi"><div class="admin-kpi-val" id="admin-health-val">${healthHtml}</div><div class="admin-kpi-lbl">Backend health</div></div>
+    </div>
+    <div class="admin-section-title" style="margin-top:24px">Recent users</div>
+    ${_adminUserTable(list.slice(0,8),'compact')}
+  `;
+
+  // Ping health in background
+  fetch(_backendUrl()+'/health').then(r=>r.ok?r.json():null).then(d=>{
+    const el=$('admin-health-val');
+    if(el)el.innerHTML=d?'<span class="admin-badge-status ok">● Online</span>':'<span class="admin-badge-status err">● Offline</span>';
+  }).catch(()=>{const el=$('admin-health-val');if(el)el.innerHTML='<span class="admin-badge-status err">● Offline</span>';});
+}
+
+async function _adminRenderUsers(){
+  const main=$('admin-main');if(!main)return;
+  const users=await _adminFetchUsers();
+  if(users&&users.error){main.innerHTML=`<div class="admin-section-title">Users</div><div class="admin-warn">${users.msg}</div>`;return;}
+  main.innerHTML=`
+    <div class="admin-section-hdr">
+      <div class="admin-section-title">All Users (${users.length})</div>
+      <button class="admin-btn" onclick="_adminUsersCache=null;adminNav('users')">↻ Refresh</button>
+    </div>
+    <input class="admin-search" id="admin-user-search" placeholder="Search by email or name…" oninput="_adminFilterUsers(this.value)"/>
+    <div id="admin-users-table-wrap">${_adminUserTable(users,'full')}</div>
+  `;
+}
+
+function _adminFilterUsers(q){
+  const wrap=$('admin-users-table-wrap');if(!wrap||!_adminUsersCache)return;
+  const filtered=q?_adminUsersCache.filter(u=>(u.email||'').toLowerCase().includes(q.toLowerCase())||(u.displayName||'').toLowerCase().includes(q.toLowerCase())):_adminUsersCache;
+  wrap.innerHTML=_adminUserTable(filtered,'full');
+}
+
+function _adminUserTable(users,mode){
+  if(!users||!users.length)return '<div class="admin-empty">No users found.<br>Ensure Firestore rules allow admin reads. See Settings tab.</div>';
+  const isCompact=mode==='compact';
+  const rows=users.map(u=>{
+    const lastLogin=u.lastLogin?new Date(u.lastLogin).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):'—';
+    const planBadge=u.plan==='pro'?'<span class="admin-plan pro">Pro</span>':u.plan==='plus'?'<span class="admin-plan plus">Plus</span>':'<span class="admin-plan free">Free</span>';
+    const msgs=u.stat_totalMessages||0;
+    const words=u.stat_wordsGenerated||0;
+    const streak=u.prof_streak||0;
+    if(isCompact){
+      return `<tr><td class="admin-td-avatar"><div class="admin-user-av" style="background:${_avatarGradient(u.displayName||u.email||'?')}">${_initials(u.displayName||u.email||'?')}</div></td><td><div class="admin-td-name">${esc(u.displayName||'—')}</div><div class="admin-td-email">${esc(u.email||u.uid)}</div></td><td>${planBadge}</td><td>${msgs.toLocaleString()}</td><td>${lastLogin}</td></tr>`;
+    }
+    return `<tr><td class="admin-td-avatar"><div class="admin-user-av" style="background:${_avatarGradient(u.displayName||u.email||'?')}">${_initials(u.displayName||u.email||'?')}</div></td><td><div class="admin-td-name">${esc(u.displayName||'—')}</div><div class="admin-td-email">${esc(u.email||u.uid)}</div></td><td>${planBadge}</td><td>${msgs.toLocaleString()}</td><td>${words>=1000?(words/1000).toFixed(1)+'K':words}</td><td>${streak}🔥</td><td class="admin-td-uid">${u.uid}</td><td>${lastLogin}</td></tr>`;
+  }).join('');
+
+  if(isCompact){
+    return `<table class="admin-table"><thead><tr><th colspan="2">User</th><th>Plan</th><th>Msgs</th><th>Last Login</th></tr></thead><tbody>${rows}</tbody></table>`;
+  }
+  return `<div class="admin-table-scroll"><table class="admin-table"><thead><tr><th colspan="2">User</th><th>Plan</th><th>Msgs</th><th>Words</th><th>Streak</th><th>UID</th><th>Last Login</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+
+async function _adminRenderSubs(){
+  const main=$('admin-main');if(!main)return;
+  const users=await _adminFetchUsers();
+  if(users&&users.error){main.innerHTML=`<div class="admin-section-title">Subscriptions</div><div class="admin-warn">${users.msg}</div>`;return;}
+  const plus=users.filter(u=>u.plan==='plus');
+  const pro=users.filter(u=>u.plan==='pro');
+  const free=users.filter(u=>!u.plan||u.plan==='free');
+  main.innerHTML=`
+    <div class="admin-section-title">Subscriptions</div>
+    <div class="admin-kpi-grid">
+      <div class="admin-kpi"><div class="admin-kpi-val admin-kv-free">${free.length}</div><div class="admin-kpi-lbl">Free</div></div>
+      <div class="admin-kpi"><div class="admin-kpi-val admin-kv-plus">${plus.length}</div><div class="admin-kpi-lbl">Plus ($20/mo)</div></div>
+      <div class="admin-kpi"><div class="admin-kpi-val admin-kv-pro">${pro.length}</div><div class="admin-kpi-lbl">Pro ($200/mo)</div></div>
+      <div class="admin-kpi"><div class="admin-kpi-val">${('$'+(plus.length*20+pro.length*200)).toLocaleString()}</div><div class="admin-kpi-lbl">Est. MRR</div></div>
+    </div>
+    ${pro.length?`<div class="admin-section-title" style="margin-top:20px">Pro Subscribers</div>${_adminUserTable(pro,'compact')}`:''}
+    ${plus.length?`<div class="admin-section-title" style="margin-top:20px">Plus Subscribers</div>${_adminUserTable(plus,'compact')}`:''}
+  `;
+}
+
+async function _adminRenderActivity(){
+  const main=$('admin-main');if(!main)return;
+  const users=await _adminFetchUsers();
+  if(users&&users.error){main.innerHTML=`<div class="admin-section-title">Activity</div><div class="admin-warn">${users.msg}</div>`;return;}
+
+  // Aggregate daily activity across all users
+  const combined={};
+  users.forEach(u=>{
+    if(!u.stat_dailyActivity)return;
+    Object.entries(u.stat_dailyActivity).forEach(([date,count])=>{
+      combined[date]=(combined[date]||0)+count;
+    });
+  });
+
+  // Sort by most-active users
+  const sorted=[...users].sort((a,b)=>(b.stat_totalMessages||0)-(a.stat_totalMessages||0));
+
+  const chartContainer=document.createElement('div');
+  chartContainer.className='stats-activity-chart admin-activity-chart';
+  _renderActivityChart(combined,chartContainer,30);
+
+  main.innerHTML=`
+    <div class="admin-section-title">Activity</div>
+    <div class="admin-section-desc">Combined message volume across all users (last 30 days)</div>
+    <div class="admin-activity-wrap" id="admin-activity-wrap"></div>
+    <div class="admin-section-title" style="margin-top:20px">Most Active Users</div>
+    ${_adminUserTable(sorted.slice(0,15),'compact')}
+  `;
+  $('admin-activity-wrap').appendChild(chartContainer);
+}
+
+async function _adminRenderHealth(){
+  const main=$('admin-main');if(!main)return;
+  main.innerHTML=`
+    <div class="admin-section-title">System Health</div>
+    <div class="admin-health-grid">
+      <div class="admin-health-row"><span>Backend URL</span><code>${_backendUrl()}</code></div>
+      <div class="admin-health-row"><span>Backend status</span><span id="admin-hc-backend" class="admin-badge-status loading">Checking…</span></div>
+      <div class="admin-health-row"><span>Model</span><span id="admin-hc-model">—</span></div>
+      <div class="admin-health-row"><span>Tavily (web search)</span><span id="admin-hc-tavily">—</span></div>
+      <div class="admin-health-row"><span>Stripe configured</span><span id="admin-hc-stripe">—</span></div>
+      <div class="admin-health-row"><span>Firebase project</span><span id="admin-hc-firebase">—</span></div>
+    </div>
+  `;
+  try{
+    const tok=await (_fbUser||window._auth.currentUser).getIdToken();
+    const res=await fetch(_backendUrl()+'/admin/health',{headers:{Authorization:'Bearer '+tok}});
+    if(res.ok){
+      const d=await res.json();
+      const _si=(id,val,ok)=>{const el=$(id);if(el){el.textContent=val;if(ok!==undefined)el.className='admin-badge-status '+(ok?'ok':'warn');}};
+      _si('admin-hc-backend','● Online',true);
+      _si('admin-hc-model',d.model);
+      _si('admin-hc-tavily',d.tavily_enabled?'Enabled':'Disabled',d.tavily_enabled);
+      _si('admin-hc-stripe',d.stripe_configured?'Configured':'Missing',d.stripe_configured);
+      _si('admin-hc-firebase',d.firebase_project);
+    }else{
+      $('admin-hc-backend').textContent='● Error '+res.status;$('admin-hc-backend').className='admin-badge-status err';
+    }
+  }catch(e){
+    $('admin-hc-backend').textContent='● Offline';$('admin-hc-backend').className='admin-badge-status err';
+  }
+}
+
+function _adminRenderSettings(){
+  const main=$('admin-main');if(!main)return;
+  const u=_fbUser||window._auth?.currentUser;
+  const uid=u?.uid||'(not logged in)';
+  main.innerHTML=`
+    <div class="admin-section-title">Admin Settings</div>
+
+    <div class="admin-settings-card">
+      <div class="admin-settings-label">Change Admin Passcode</div>
+      <div class="admin-settings-row">
+        <input class="admin-input" type="password" id="admin-new-passcode" placeholder="New passcode (any length)" maxlength="32"/>
+        <button class="admin-btn admin-btn-primary" onclick="_adminSavePasscode()">Save Passcode</button>
+      </div>
+      <div class="admin-settings-hint">Current passcode stored locally in your browser.</div>
+    </div>
+
+    <div class="admin-settings-card">
+      <div class="admin-settings-label">Your Admin UID</div>
+      <div class="admin-uid-box" onclick="navigator.clipboard.writeText('${uid}').then(()=>toast('UID copied','ok',1500))" title="Click to copy">${uid}</div>
+      <div class="admin-settings-hint">Copy this UID to update your Firestore security rules for full admin access.</div>
+    </div>
+
+    <div class="admin-settings-card">
+      <div class="admin-settings-label">Firestore Security Rules</div>
+      <div class="admin-settings-hint" style="margin-bottom:8px">To enable the Users, Subscriptions, and Activity sections, update your Firestore rules in the <a href="https://console.firebase.google.com/project/arnavai-e9446/firestore/rules" target="_blank" class="admin-link">Firebase Console</a>:</div>
+      <pre class="admin-code-block">rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{userId}/{document=**} {
+      allow read, write: if request.auth.uid == userId;
+      allow read: if request.auth.uid == '${uid}';
+    }
+    match /users/{userId} {
+      allow read, write: if request.auth.uid == userId;
+      allow read: if request.auth.uid == '${uid}';
+    }
+  }
+}</pre>
+      <button class="admin-btn" onclick="navigator.clipboard.writeText(document.querySelector('.admin-code-block').textContent).then(()=>toast('Rules copied','ok',1500))">Copy Rules</button>
+    </div>
+
+    <div class="admin-settings-card">
+      <div class="admin-settings-label">Clear Cache</div>
+      <button class="admin-btn" onclick="_adminUsersCache=null;toast('Cache cleared','ok',1500)">Clear user data cache</button>
+      <div class="admin-settings-hint">Force-reload user data on next view.</div>
+    </div>
+
+    <div class="admin-settings-card">
+      <div class="admin-settings-label">Lock Admin Panel</div>
+      <button class="admin-btn admin-btn-danger" onclick="_adminUnlocked=false;closeAdmin();toast('Admin locked','info',2000)">Lock &amp; Close</button>
+      <div class="admin-settings-hint">You will need to enter the passcode again to reopen.</div>
+    </div>
+  `;
+}
+
+function _adminSavePasscode(){
+  const inp=$('admin-new-passcode');if(!inp||!inp.value.trim()){toast('Enter a passcode','err');return;}
+  localStorage.setItem('arnav-admin-key',inp.value.trim());
+  inp.value='';
+  toast('Passcode saved','ok',2000);
+}
+
+window.addEventListener('hashchange',()=>{if(window.location.hash==='#admin')_tryOpenAdmin();});
