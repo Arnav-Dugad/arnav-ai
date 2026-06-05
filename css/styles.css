@@ -1347,6 +1347,18 @@ kbd{background:var(--bg3);border:1px solid var(--border2);border-radius:4px;padd
 @keyframes webPulse{0%,100%{opacity:1;}50%{opacity:.55;}}
 .thinking-code{color:#4ecb8a;font-weight:500;animation:webPulse 1.4s ease-in-out infinite;}
 
+/* ── TTS / Read Aloud ── */
+.act-btn.tts-active{
+  color:var(--accent2)!important;
+  border-color:rgba(107,94,248,.45)!important;
+  background:var(--glow2)!important;
+  animation:ttsPulse 1.8s ease-in-out infinite;
+}
+@keyframes ttsPulse{
+  0%,100%{box-shadow:0 0 0 0 rgba(107,94,248,.0);}
+  50%{box-shadow:0 0 0 4px rgba(107,94,248,.18);}
+}
+
 /* ══════════════════════════════════════
    MODEL SELECTOR DROPDOWN
 ══════════════════════════════════════ */
