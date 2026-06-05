@@ -234,6 +234,18 @@
       </button>
     </div>
 
+    <!-- Hidden file input for attachments -->
+    <input type="file" id="file-input" multiple accept="image/*,.txt,.md,.csv,.py,.js,.ts,.jsx,.tsx,.html,.css,.json,.yaml,.yml,.sh,.sql,.xml,.go,.rs,.java,.c,.cpp,.h,.rb,.swift,.kt" style="display:none" onchange="onFileSelected(this)">
+
+    <!-- Drag & drop overlay -->
+    <div class="drag-overlay" id="drag-overlay">
+      <div class="drag-overlay-inner">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="48" height="48"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+        <div class="drag-overlay-text">Drop files here</div>
+        <div class="drag-overlay-sub">Images, code, text files</div>
+      </div>
+    </div>
+
     <!-- Messages -->
     <div class="msgs-area" id="msgs-area">
       <div class="msgs-inner" id="msgs-inner">
@@ -259,6 +271,14 @@
             <div class="chip" onclick="useChip(this)">
               <span class="chip-icon">🔍</span>
               <div class="chip-text"><span class="chip-label">Summarize</span><span class="chip-hint">Get the key points</span></div>
+            </div>
+            <div class="chip" onclick="openFileAttach()">
+              <span class="chip-icon">🖼️</span>
+              <div class="chip-text"><span class="chip-label">Analyze Image</span><span class="chip-hint">Upload & ask about it</span></div>
+            </div>
+            <div class="chip" onclick="openFileAttach()">
+              <span class="chip-icon">📄</span>
+              <div class="chip-text"><span class="chip-label">Review Code/File</span><span class="chip-hint">Upload any code file</span></div>
             </div>
           </div>
         </div>
@@ -298,7 +318,11 @@
           <span class="char-count" id="char-count">0 / 2000</span>
         </div>
         <div class="input-box" id="input-box">
+          <div id="attach-previews" class="attach-previews" style="display:none"></div>
           <div class="input-row">
+            <button class="attach-btn" id="attach-btn" onclick="openFileAttach()" title="Attach files or images (drag & drop, or paste an image)">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
+            </button>
             <textarea id="cinput" placeholder="Message Arnav AI…" rows="1" oninput="onInput(this)" onkeydown="onKey(event)"></textarea>
             <button class="mic-btn" id="mic-btn" onclick="toggleVoice()" title="Voice input">
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 016 0v6a3 3 0 01-3 3z"/></svg>
@@ -313,7 +337,7 @@
         </div>
         <div class="input-footer">
           <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-          <kbd>Enter</kbd> send · <kbd>Shift+Enter</kbd> newline · <kbd>Ctrl+K</kbd> new · <kbd>↑</kbd> history
+          <kbd>Enter</kbd> send · <kbd>Shift+Enter</kbd> newline · <kbd>Ctrl+K</kbd> new · <kbd>↑</kbd> history · drag & drop files
           <span class="footer-copy">Arnav &copy; <span id="footer-year-desk"></span></span>
         </div>
       </div>
