@@ -179,6 +179,8 @@ function onLogin(u){
       <div class="chip" onclick="useChip(this)"><span class="chip-icon">🧠</span><div class="chip-text"><span class="chip-label">Explain & Learn</span><span class="chip-hint">Break down any topic</span></div></div>
       <div class="chip" onclick="useChip(this)"><span class="chip-icon">💡</span><div class="chip-text"><span class="chip-label">Brainstorm</span><span class="chip-hint">Ideas and strategies</span></div></div>
       <div class="chip" onclick="useChip(this)"><span class="chip-icon">🔍</span><div class="chip-text"><span class="chip-label">Summarize</span><span class="chip-hint">Get the key points</span></div></div>
+      <div class="chip" onclick="openFileAttach()"><span class="chip-icon">🖼️</span><div class="chip-text"><span class="chip-label">Analyze Image</span><span class="chip-hint">Upload &amp; ask about it</span></div></div>
+      <div class="chip" onclick="openFileAttach()"><span class="chip-icon">📄</span><div class="chip-text"><span class="chip-label">Review Code/File</span><span class="chip-hint">Upload any code file</span></div></div>
     </div></div>`;
   // Apply gradient avatar immediately
   const _n=u.displayName||u.email.split('@')[0];
@@ -191,6 +193,7 @@ function onLogin(u){
   initPersona();
   renderDailyBar();
   _initFocusMode();
+  _initDragDrop();
   _handleStripeRedirect();
   setTimeout(showWelcome,700);
 }
@@ -340,13 +343,24 @@ function restoreLastChat(){
   if(lastId&&sessions[lastId])loadChat(lastId);
 }
 
+function _stripImagesFromMsgs(msgs){
+  // Strip binary image data before persisting to avoid bloating Firestore / localStorage.
+  // The text content (embedded file blocks) is preserved; only dataUrl/base64 are removed.
+  return msgs.map(m=>{
+    if(!m.images||!m.images.length)return m;
+    const {images,...rest}=m; // eslint-disable-line no-unused-vars
+    return rest; // drop images entirely from stored msgs
+  });
+}
+
 async function saveConversation(id,isNew){
   try{localStorage.setItem('arnav-history',JSON.stringify(allHistory));}catch(e){}
   if(!currentUserId||!sessions[id]||!window._db)return;
   const s=sessions[id];
   try{
     const ref=window._fsDoc(window._db,'users',currentUserId,'conversations',id);
-    const data={id,title:s.title,msgs:s.msgs,msgCount:s.msgs.length,updatedAt:window._fsTimestamp()};
+    const safeMsgs=_stripImagesFromMsgs(s.msgs);
+    const data={id,title:s.title,msgs:safeMsgs,msgCount:safeMsgs.length,updatedAt:window._fsTimestamp()};
     if(isNew)data.createdAt=window._fsTimestamp();
     await window._fsSet(ref,data,{merge:true});
   }catch(e){}
@@ -549,6 +563,10 @@ function clearDraft(){
 // ── chat sessions ──
 let sessions={},currentChatId=null,msgs=[],busy=false,chatTitle='',codeMode=false,stopRequested=false;
 let webSearchMode=false; // tracks web search toggle
+
+// ── file/image attachments ──
+let _pendingAttachments=[];
+const _imgStore={}; // stores dataUrls keyed by "msgIdx_imgIdx" for safe inline access
 function genId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
 
 function newChat(){
@@ -556,7 +574,8 @@ function newChat(){
   closeConvSearch();
   currentChatId=genId();msgs=[];chatTitle='';
   // Clear any leftover input (don't persist draft from prior chat)
-  const _inp=$('cinput');if(_inp){_inp.value='';_inp.style.height='auto';$('send-btn').disabled=true;$('char-count').textContent='0 / 2000';}
+  const _inp=$('cinput');if(_inp){_inp.value='';_inp.style.height='auto';$('char-count').textContent='0 / 2000';}
+  _pendingAttachments=[];_renderAttachPreviews();_updateSendBtn();
   $('tb-title').textContent='New conversation';
   $('msgs-inner').innerHTML=`<div class="empty-state" id="empty-state">
     <div class="empty-glyph"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg></div>
@@ -567,6 +586,8 @@ function newChat(){
       <div class="chip" onclick="useChip(this)"><span class="chip-icon">🧠</span><div class="chip-text"><span class="chip-label">Explain & Learn</span><span class="chip-hint">Break down any topic</span></div></div>
       <div class="chip" onclick="useChip(this)"><span class="chip-icon">💡</span><div class="chip-text"><span class="chip-label">Brainstorm</span><span class="chip-hint">Ideas and strategies</span></div></div>
       <div class="chip" onclick="useChip(this)"><span class="chip-icon">🔍</span><div class="chip-text"><span class="chip-label">Summarize</span><span class="chip-hint">Get the key points</span></div></div>
+      <div class="chip" onclick="openFileAttach()"><span class="chip-icon">🖼️</span><div class="chip-text"><span class="chip-label">Analyze Image</span><span class="chip-hint">Upload &amp; ask about it</span></div></div>
+      <div class="chip" onclick="openFileAttach()"><span class="chip-icon">📄</span><div class="chip-text"><span class="chip-label">Review Code/File</span><span class="chip-hint">Upload any code file</span></div></div>
     </div></div>`;
   renderHistory(allHistory);
   if(window.innerWidth<=720)closeSb();
@@ -579,7 +600,7 @@ function loadChat(id){
   currentChatId=id;msgs=[...s.msgs];chatTitle=s.title;
   $('tb-title').textContent=chatTitle;
   $('msgs-inner').innerHTML='';
-  msgs.forEach((m,i)=>{if(m.role==='user')appendUserBubble(m.content,i);else appendAIBubble(m.content,false,i);});
+  msgs.forEach((m,i)=>{if(m.role==='user')appendUserBubble(m.content,i,m.images);else appendAIBubble(m.content,false,i);});
   renderHistory(allHistory);
   if(window.innerWidth<=720)closeSb();
   scrollDown();
@@ -651,10 +672,16 @@ function _saveInputHistory(text){
 }
 
 // ── input ──
+function _updateSendBtn(){
+  const hasText=($('cinput')?.value||'').trim().length>0;
+  const hasAttach=_pendingAttachments.length>0;
+  if($('send-btn'))$('send-btn').disabled=!hasText&&!hasAttach;
+}
+
 function onInput(el){
   el.style.height='auto';
   el.style.height=Math.min(el.scrollHeight,160)+'px';
-  $('send-btn').disabled=!el.value.trim()&&!busy;
+  _updateSendBtn();
   const len=el.value.length;
   const cc=$('char-count');
   cc.textContent=len+' / 2000';
@@ -974,8 +1001,15 @@ function rateMsg(val,btn){
   }
 }
 
-function renderUserBubbleHtml(text,idx){
-  return `<span class="user-bubble-text">${esc(text)}</span>
+function renderUserBubbleHtml(text,idx,images){
+  let imgHtml='';
+  if(images&&images.length){
+    const imgEls=images.map((img,ii)=>`<img src="${img.dataUrl}" class="user-attached-img" data-imgidx="${idx}_${ii}" alt="Attached image" onclick="_openImgByKey('${idx}_${ii}')">`).join('');
+    imgHtml=`<div class="user-bubble-imgs">${imgEls}</div>`;
+    // Store references in a map for safe retrieval
+    images.forEach((img,ii)=>{_imgStore[idx+'_'+ii]=img.dataUrl;});
+  }
+  return `${imgHtml}${text?`<span class="user-bubble-text">${esc(text)}</span>`:''}
     <button class="user-copy-btn" onclick="copyUserMsg(this)" title="Copy"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="11" height="11"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg></button>
     <button class="user-edit-btn" onclick="startEditMsg(${idx})" title="Edit message"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="12" height="12"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>`;
 }
@@ -988,12 +1022,12 @@ function copyUserMsg(btn){
   });
 }
 
-function appendUserBubble(text,msgIndex){
+function appendUserBubble(text,msgIndex,images){
   const e=$('empty-state');if(e)e.remove();
   const d=document.createElement('div');d.className='msg msg-user';
   const bubble=document.createElement('div');bubble.className='user-bubble';
   if(msgIndex!==undefined)bubble.dataset.bubbleIdx=msgIndex;
-  bubble.innerHTML=renderUserBubbleHtml(text,msgIndex);
+  bubble.innerHTML=renderUserBubbleHtml(text,msgIndex,images);
   d.appendChild(bubble);$('msgs-inner').appendChild(d);scrollDown();
 }
 
@@ -1084,6 +1118,131 @@ function forkChat(text){
 }
 
 // ══════════════════════════════════════
+// FILE / IMAGE ATTACHMENTS
+// ══════════════════════════════════════
+function openFileAttach(){$('file-input')?.click();}
+
+async function onFileSelected(input){
+  const files=Array.from(input.files||[]);
+  for(const f of files)await _processFile(f);
+  input.value='';
+  _renderAttachPreviews();
+  _updateSendBtn();
+}
+
+async function _processFile(file){
+  const MAX=10*1024*1024; // 10 MB
+  if(file.size>MAX){toast(`${file.name} is too large (max 10 MB)`,'err',3500);return;}
+  const isImg=file.type.startsWith('image/');
+  const textTypes=/^(text\/|application\/(json|javascript|xml|x-yaml))/;
+  const textExts=/\.(txt|md|csv|py|js|ts|jsx|tsx|html|htm|css|json|yaml|yml|sh|bash|sql|xml|go|rs|java|c|cpp|h|rb|php|swift|kt|r|lua|pl|scala|dart|vue|svelte)$/i;
+  const isText=textTypes.test(file.type)||textExts.test(file.name);
+
+  if(isImg){
+    const dataUrl=await _fileToBase64(file);
+    _pendingAttachments.push({name:file.name,type:'image',mimeType:file.type||'image/jpeg',base64:dataUrl.split(',')[1],dataUrl,size:file.size});
+    $('attach-btn')?.classList.add('has-files');
+  }else if(isText){
+    const textContent=await _fileToText(file);
+    _pendingAttachments.push({name:file.name,type:'text',mimeType:file.type||'text/plain',textContent,size:file.size});
+    $('attach-btn')?.classList.add('has-files');
+  }else{
+    toast(`${file.name}: unsupported type. Use images or text/code files.`,'info',3500);
+  }
+}
+
+function _fileToBase64(f){return new Promise((res,rej)=>{const r=new FileReader();r.onload=e=>res(e.target.result);r.onerror=rej;r.readAsDataURL(f);});}
+function _fileToText(f){return new Promise((res,rej)=>{const r=new FileReader();r.onload=e=>res(e.target.result);r.onerror=rej;r.readAsText(f);});}
+
+function _renderAttachPreviews(){
+  const row=$('attach-previews');if(!row)return;
+  if(!_pendingAttachments.length){row.style.display='none';return;}
+  row.style.display='flex';
+  row.innerHTML='';
+  _pendingAttachments.forEach((a,i)=>{
+    const chip=document.createElement('div');chip.className='attach-chip';
+    const nameShort=a.name.length>22?a.name.slice(0,20)+'…':a.name;
+    if(a.type==='image'){
+      chip.innerHTML=`<img src="${a.dataUrl}" class="attach-thumb" alt="${esc(a.name)}"><span class="attach-name">${esc(nameShort)}</span><button class="attach-remove" onclick="removeAttach(${i})" title="Remove">×</button>`;
+    }else{
+      const ext=(a.name.split('.').pop()||'txt').toLowerCase();
+      chip.innerHTML=`<span class="attach-file-icon">${_fileTypeIcon(ext)}</span><div class="attach-file-info"><span class="attach-name">${esc(nameShort)}</span><span class="attach-size">${_fmtFileSize(a.size)}</span></div><button class="attach-remove" onclick="removeAttach(${i})" title="Remove">×</button>`;
+    }
+    row.appendChild(chip);
+  });
+}
+
+function _fileTypeIcon(ext){
+  const m={py:'🐍',js:'⚡',ts:'🔷',jsx:'⚛',tsx:'⚛',html:'🌐',htm:'🌐',css:'🎨',json:'{}',md:'📝',txt:'📄',csv:'📊',sql:'🗄',sh:'💻',bash:'💻',yml:'⚙',yaml:'⚙',xml:'📋',go:'🐹',rs:'🦀',java:'☕',c:'💾',cpp:'💾',rb:'💎',swift:'🍎',kt:'🔵',r:'📈',lua:'🌙',vue:'🟢',svelte:'🔥'};
+  return m[ext]||'📎';
+}
+
+function _fmtFileSize(bytes){
+  if(bytes<1024)return bytes+' B';
+  if(bytes<1048576)return(bytes/1024).toFixed(1)+' KB';
+  return(bytes/1048576).toFixed(1)+' MB';
+}
+
+function removeAttach(idx){
+  _pendingAttachments.splice(idx,1);
+  if(!_pendingAttachments.length)$('attach-btn')?.classList.remove('has-files');
+  _renderAttachPreviews();
+  _updateSendBtn();
+}
+
+// ── image lightbox viewer ──
+function _openImgByKey(key){const url=_imgStore[key];if(url)openImgViewer(url);}
+function openImgViewer(dataUrl){
+  const modal=document.createElement('div');
+  modal.className='img-viewer-modal';
+  const inner=document.createElement('div');inner.className='img-viewer-inner';
+  const img=document.createElement('img');img.src=dataUrl;img.alt='Full size image';
+  const closeBtn=document.createElement('button');closeBtn.className='img-viewer-close';closeBtn.title='Close';closeBtn.textContent='×';
+  closeBtn.onclick=()=>modal.remove();
+  const dlBtn=document.createElement('button');dlBtn.className='img-viewer-dl';dlBtn.textContent='Download';
+  dlBtn.onclick=()=>{const a=document.createElement('a');a.href=dataUrl;a.download='image.png';a.click();};
+  inner.appendChild(img);inner.appendChild(closeBtn);inner.appendChild(dlBtn);
+  modal.appendChild(inner);
+  modal.addEventListener('click',e=>{if(e.target===modal)modal.remove();});
+  document.body.appendChild(modal);
+}
+
+// ── drag & drop onto messages area ──
+function _initDragDrop(){
+  const area=$('msgs-area'),overlay=$('drag-overlay');
+  if(!area||!overlay)return;
+  let cnt=0;
+  area.addEventListener('dragover',e=>{
+    if(!e.dataTransfer?.types.includes('Files'))return;
+    e.preventDefault();e.dataTransfer.dropEffect='copy';
+  });
+  area.addEventListener('dragenter',e=>{
+    if(!e.dataTransfer?.types.includes('Files'))return;
+    e.preventDefault();cnt++;overlay.classList.add('on');
+  });
+  area.addEventListener('dragleave',()=>{if(--cnt<=0){cnt=0;overlay.classList.remove('on');}});
+  area.addEventListener('drop',async e=>{
+    e.preventDefault();cnt=0;overlay.classList.remove('on');
+    const files=Array.from(e.dataTransfer?.files||[]);
+    for(const f of files)await _processFile(f);
+    _renderAttachPreviews();_updateSendBtn();
+    $('cinput')?.focus();
+  });
+}
+
+// ── paste images from clipboard ──
+document.addEventListener('paste',async e=>{
+  const active=document.activeElement;
+  const inApp=active===$('cinput')||$('msgs-area')?.contains(active)||active===document.body;
+  if(!inApp)return;
+  const items=Array.from(e.clipboardData?.items||[]).filter(it=>it.kind==='file'&&it.type.startsWith('image/'));
+  if(!items.length)return;
+  e.preventDefault();
+  for(const item of items){const f=item.getAsFile();if(f)await _processFile(f);}
+  _renderAttachPreviews();_updateSendBtn();
+});
+
+// ══════════════════════════════════════
 // FOLLOW-UP SUGGESTION CHIPS
 // ══════════════════════════════════════
 function _generateFollowUps(text){
@@ -1167,7 +1326,9 @@ async function regenLast(){
 // ── send ──
 async function sendMsg(){
   if(busy)return;
-  const inp=$('cinput'),text=inp.value.trim();if(!text)return;
+  const inp=$('cinput'),text=inp.value.trim();
+  const hasAttach=_pendingAttachments.length>0;
+  if(!text&&!hasAttach)return;
   if(!_checkDailyLimit())return;
   // Web search limit check
   if(webSearchMode){
@@ -1182,23 +1343,52 @@ async function sendMsg(){
     }
   }
   if(navigator.vibrate)navigator.vibrate(5);
-  _saveInputHistory(text);
-  inp.value='';inp.style.height='auto';clearDraft();$('send-btn').disabled=true;$('char-count').textContent='0 / 2000';
+  if(text)_saveInputHistory(text);
+  inp.value='';inp.style.height='auto';clearDraft();$('char-count').textContent='0 / 2000';
+
+  // Capture and clear attachments before any await
+  const attachSnap=[..._pendingAttachments];
+  _pendingAttachments=[];
+  _renderAttachPreviews();
+  _updateSendBtn();
+  $('attach-btn')?.classList.remove('has-files');
+
+  // Separate images and text files
+  const imageAttach=attachSnap.filter(a=>a.type==='image');
+  const textFileAttach=attachSnap.filter(a=>a.type==='text');
+
+  // Build message content: embed text file contents inline
+  let msgContent=text;
+  if(textFileAttach.length){
+    const blocks=textFileAttach.map(f=>{
+      const ext=(f.name.split('.').pop()||'txt').toLowerCase();
+      const MAX_CHARS=6000;
+      const body=f.textContent.length>MAX_CHARS?f.textContent.slice(0,MAX_CHARS)+'\n\n… (truncated)':f.textContent;
+      return `📄 **${f.name}**\n\`\`\`${ext}\n${body}\n\`\`\``;
+    }).join('\n\n');
+    msgContent=(text?text+'\n\n':'')+blocks;
+  }
+  // If only images with no text, add minimal placeholder for history
+  if(!msgContent&&imageAttach.length){
+    msgContent=imageAttach.map(i=>`[📷 ${i.name}]`).join(' ');
+  }
+
   const isNew=!chatTitle;
   if(isNew){
-    chatTitle=generateTitle(text);
+    const titleText=text||(attachSnap[0]?.name?'File: '+attachSnap[0].name:'Chat');
+    chatTitle=generateTitle(titleText);
     $('tb-title').textContent=chatTitle;
     if(!currentChatId)currentChatId=genId();
     addToHistory(currentChatId,chatTitle,true);
     localStorage.setItem('arnav-last-chat',currentChatId);
   }
-  msgs.push({role:'user',content:text});
-  appendUserBubble(text,msgs.length-1);
+  msgs.push({role:'user',content:msgContent,images:imageAttach.map(i=>({base64:i.base64,mimeType:i.mimeType,name:i.name,dataUrl:i.dataUrl}))});
+  appendUserBubble(msgContent,msgs.length-1,imageAttach);
   // Save to sessions IMMEDIATELY so the chat is navigable while generating
   sessions[currentChatId]={msgs:[...msgs],title:chatTitle};
   updateStats(isNew);
   _incDailyCount();renderDailyBar();
-  await callAPI(text,true);
+  await callAPI(msgContent,isNew,imageAttach);
 }
 
 // ══════════════════════════════════════
@@ -1291,7 +1481,8 @@ function _skipTypewriter(){
   $('stop-btn').onclick=stopGen;
 }
 
-async function callAPI(text,isNew){
+async function callAPI(text,isNew,_images){
+  _images=_images||[];
   busy=true;stopRequested=false;
   _abortController=new AbortController();
   $('send-btn').disabled=true;$('stop-btn').classList.add('on');
@@ -1322,6 +1513,9 @@ async function callAPI(text,isNew){
     // Choose endpoint: proxy for custom API keys, default for Arnav AI
     let _fetchUrl=window.API_URL;
     let _fetchBody={messages:msgsToSend,web_search:_webSearch,code_mode:_codeActive};
+    if(_images.length){
+      _fetchBody.images=_images.map(i=>({base64:i.base64,mimeType:i.mimeType}));
+    }
     if(_activeModelId!=='arnav'){
       const kc=_apiKeys[_activeModelId];
       if(kc&&kc.key){
@@ -1330,6 +1524,9 @@ async function callAPI(text,isNew){
       }else{
         toast('No API key set for this model. Add it in Settings → Custom Models.','err',4000);
       }
+    }else if(_images.length){
+      // Default Arnav AI model is text-only; let user know
+      toast('💡 Image analysis requires a vision model (GPT-4o, Claude, Gemini). Set one up in Settings → Custom Models.','info',6000);
     }
     const res=await fetch(_fetchUrl,{
       method:'POST',
@@ -1343,7 +1540,7 @@ async function callAPI(text,isNew){
 
     if(stopRequested){
       busy=false;$('stop-btn').classList.remove('on');
-      $('send-btn').disabled=!$('cinput').value.trim();
+      _updateSendBtn();
       _setGenerating(false);
       return;
     }
@@ -1380,7 +1577,7 @@ async function callAPI(text,isNew){
         _notifyResponse();
         busy=false;
         $('stop-btn').classList.remove('on');
-        $('send-btn').disabled=!$('cinput').value.trim();
+        _updateSendBtn();
         _setGenerating(false);
       });
     }else{
@@ -1389,7 +1586,7 @@ async function callAPI(text,isNew){
       toast(`💬 Response ready in "${_savedTitle}"  — click to view`,'ok',6000);
       busy=false;
       $('stop-btn').classList.remove('on');
-      $('send-btn').disabled=!$('cinput').value.trim();
+      _updateSendBtn();
       _setGenerating(false);
     }
   }catch(err){
@@ -1398,7 +1595,7 @@ async function callAPI(text,isNew){
       if(_onThisChat())hideTyping();
       busy=false;$('stop-btn').classList.remove('on');
       $('stop-btn').onclick=stopGen;
-      $('send-btn').disabled=!$('cinput').value.trim();
+      _updateSendBtn();
       _setGenerating(false);
       return;
     }
@@ -1434,13 +1631,13 @@ async function callAPI(text,isNew){
     toast(toastMsg,'err');
     busy=false;$('stop-btn').classList.remove('on');
     $('stop-btn').onclick=stopGen;
-    $('send-btn').disabled=!$('cinput').value.trim();
+    _updateSendBtn();
     _setGenerating(false);
   }
 
   if(!_streamStarted&&busy){
     busy=false;$('stop-btn').classList.remove('on');
-    $('send-btn').disabled=!$('cinput').value.trim();
+    _updateSendBtn();
     _setGenerating(false);
   }
 }
@@ -1844,7 +2041,7 @@ function startEditMsg(idx){
 }
 function cancelEditMsg(idx){
   const bubble=document.querySelector(`[data-bubble-idx="${idx}"]`);if(!bubble)return;
-  bubble.classList.remove('editing');bubble.innerHTML=renderUserBubbleHtml(msgs[idx]?.content||'',idx);
+  bubble.classList.remove('editing');bubble.innerHTML=renderUserBubbleHtml(msgs[idx]?.content||'',idx,msgs[idx]?.images);
 }
 async function saveEditMsg(idx){
   if(busy)return;
@@ -2959,4 +3156,4 @@ function deletePrompt(e,id){
 }
 
 // ── init ──
-$('cinput').addEventListener('input',function(){$('send-btn').disabled=!this.value.trim();});
+$('cinput').addEventListener('input',function(){_updateSendBtn();});
