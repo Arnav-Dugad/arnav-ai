@@ -1489,33 +1489,251 @@ function toggleVoice(){
 function _killVoice(){try{if(_recog){_recog.abort();_recog=null;}}catch(e){}}
 
 // ══════════════════════════════════════
-// VOICE OUTPUT
+// VOICE OUTPUT  (language-aware, chunked, Chrome-bug-proof)
 // ══════════════════════════════════════
+
+// ── Language detection via Unicode block character counts
+const _TTS_LANG_BLOCKS={
+  'hi-IN':/[ऀ-ॿ]/g,  // Devanagari → Hindi / Marathi / Sanskrit
+  'ar-SA':/[؀-ۿ]/g,  // Arabic
+  'ja-JP':/[぀-ヿㇰ-ㇿ]/g,  // Hiragana + Katakana
+  'zh-CN':/[一-鿿㐀-䶿]/g,  // CJK Unified Ideographs
+  'ko-KR':/[가-힯]/g,  // Hangul
+  'ta-IN':/[஀-௿]/g,  // Tamil
+  'te-IN':/[ఀ-౿]/g,  // Telugu
+  'bn-IN':/[ঀ-৿]/g,  // Bengali
+  'gu-IN':/[઀-૿]/g,  // Gujarati
+  'pa-IN':/[਀-੿]/g,  // Punjabi (Gurmukhi)
+  'ml-IN':/[ഀ-ൿ]/g,  // Malayalam
+  'kn-IN':/[ಀ-೿]/g,  // Kannada
+  'ru-RU':/[Ѐ-ӿ]/g,  // Cyrillic
+  'el-GR':/[Ͱ-Ͽ]/g,  // Greek
+  'th-TH':/[฀-๿]/g,  // Thai
+};
+
+const _TTS_LANG_LABELS={
+  'hi-IN':'हिन्दी','ar-SA':'عربي','ja-JP':'日本語','zh-CN':'中文',
+  'ko-KR':'한국어','ta-IN':'தமிழ்','te-IN':'తెలుగు','bn-IN':'বাংলা',
+  'gu-IN':'ગુજરાતી','pa-IN':'ਪੰਜਾਬੀ','ml-IN':'മലയാളം','kn-IN':'ಕನ್ನಡ',
+  'ru-RU':'Русский','el-GR':'Ελληνικά','th-TH':'ภาษาไทย',
+};
+
+function _detectTtsLang(text){
+  const sample=text.slice(0,800).replace(/\s/g,'');
+  const total=sample.length||1;
+  let best=null,bestPct=0;
+  for(const[lang,re] of Object.entries(_TTS_LANG_BLOCKS)){
+    const matches=(sample.match(re)||[]).length;
+    const pct=matches/total;
+    if(pct>0.07&&pct>bestPct){best=lang;bestPct=pct;} // >7% non-Latin chars → that language
+  }
+  return best||'en-US';
+}
+
+// ── Voice selection: score all voices and pick the best for the language
+function _getBestTtsVoice(lang){
+  const voices=window.speechSynthesis.getVoices();
+  if(!voices.length)return null;
+  const prefix=lang.split('-')[0].toLowerCase();
+  const scored=voices.map(v=>{
+    const vl=v.lang.toLowerCase();
+    let s=0;
+    if(vl===lang.toLowerCase())s+=20;       // exact lang+region match
+    else if(vl.startsWith(prefix))s+=10;    // same language, different region
+    else return{v,s:-1};
+    const nm=v.name.toLowerCase();
+    if(nm.includes('google'))s+=16;         // Google voices: best quality
+    if(nm.includes('enhanced'))s+=13;
+    if(nm.includes('premium'))s+=13;
+    if(nm.includes('neural'))s+=13;
+    if(nm.includes('natural'))s+=11;
+    if(nm.includes('microsoft'))s+=9;
+    if(nm.includes('apple'))s+=8;
+    if(!v.localService)s+=2;               // online voices tend to be higher quality
+    return{v,s};
+  }).filter(x=>x.s>=0).sort((a,b)=>b.s-a.s);
+  if(scored.length)return scored[0].v;
+  // Fallback: any English voice
+  return voices.find(v=>v.lang.startsWith('en'))||voices[0]||null;
+}
+
+// ── Text cleaning: strip markdown, code, URLs, symbols
+function _cleanForTts(raw){
+  return raw
+    .replace(/```[\s\S]*?```/g,' ')                // fenced code blocks
+    .replace(/`[^`\n]+`/g,' ')                      // inline code
+    .replace(/^#{1,6}\s+(.+)$/gm,'$1')              // headings → plain text
+    .replace(/\*{1,3}([^*\n]+)\*{1,3}/g,'$1')      // bold/italic → plain text
+    .replace(/_{1,2}([^_\n]+)_{1,2}/g,'$1')
+    .replace(/~~([^~\n]+)~~/g,'$1')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g,'$1')         // [text](url) → text
+    .replace(/https?:\/\/\S+/g,' ')                  // bare URLs
+    .replace(/^\s*[-*+]\s+/gm,'')                    // unordered list bullets
+    .replace(/^\s*\d+\.\s+/gm,'')                    // ordered list numbers
+    .replace(/^[-_*]{3,}$/gm,' ')                    // horizontal rules
+    .replace(/^>\s*/gm,'')                           // blockquotes
+    .replace(/\|[^\n]+\|/g,' ')                      // tables
+    .replace(/&amp;/g,' and ').replace(/&lt;/g,' ').replace(/&gt;/g,' ').replace(/&[a-z]+;/g,' ')
+    .replace(/[\u{1F300}-\u{1FFFF}]/gu,'')           // emoji blocks (Unicode)
+    .replace(/[★⚡👑🔥🌐⚠️✅❌💡🔍✍️🧠🎤📖🔒⚙±×÷]/g,'')
+    // Pronounce common abbreviations naturally
+    .replace(/\bAI\b/g,'A.I.').replace(/\bAPI\b/g,'A.P.I.').replace(/\bUI\b/g,'U.I.')
+    .replace(/\bUX\b/g,'U.X.').replace(/\bHTML\b/g,'H.T.M.L.').replace(/\bCSS\b/g,'C.S.S.')
+    .replace(/\bSQL\b/g,'S.Q.L.').replace(/\bURL\b/g,'U.R.L.').replace(/\bGPU\b/g,'G.P.U.')
+    .replace(/\bi\.e\.\b/gi,'that is').replace(/\be\.g\.\b/gi,'for example')
+    // Join multi-newlines into sentence pauses
+    .replace(/\n{2,}/g,'. ')
+    .replace(/\n/g,' ')
+    .replace(/\s{2,}/g,' ')
+    .trim();
+}
+
+// ── Chunk text at sentence/clause boundaries (Chrome stops TTS after ~15s on long utterances)
+function _splitTtsChunks(text,maxLen=220){
+  if(!text)return[];
+  const parts=text
+    .replace(/([.!?।])\s+/g,'$1\n')         // sentence-ending punctuation (incl. Hindi danda ।)
+    .replace(/([;:])\s+(?=[A-Zऀ-ॿ؀-ۿ])/g,'$1\n') // semicolon/colon before new clause
+    .split('\n').map(s=>s.trim()).filter(Boolean);
+  const chunks=[];let cur='';
+  for(const p of parts){
+    const cand=cur?cur+' '+p:p;
+    if(cand.length>maxLen&&cur){chunks.push(cur);cur=p;}
+    else cur=cand;
+  }
+  if(cur)chunks.push(cur);
+  // Hard-split any remaining overlength chunks at word boundaries
+  return chunks.flatMap(c=>{
+    if(c.length<=maxLen*1.8)return[c];
+    const words=c.split(' ');const sub=[];let acc='';
+    for(const w of words){const t=acc?acc+' '+w:w;if(t.length>maxLen&&acc){sub.push(acc);acc=w;}else acc=t;}
+    if(acc)sub.push(acc);
+    return sub;
+  });
+}
+
+// ── TTS state
 let _ttsBtn=null;
-function _getUSVoice(){
-  const vs=window.speechSynthesis.getVoices();
-  const prio=[v=>v.name==='Google US English',v=>v.name==='Microsoft Zira - English (United States)',v=>v.name==='Microsoft Mark - English (United States)',v=>v.voiceURI&&v.voiceURI.includes('en_US'),v=>v.lang==='en-US',v=>v.lang.startsWith('en')];
-  for(const p of prio){const v=vs.find(p);if(v)return v;}
-  return vs[0]||null;
-}
+let _ttsChunks=[];
+let _ttsIdx=0;
+let _ttsRunning=false;
+let _ttsLang='en-US';
+let _ttsVoice=null;
+let _ttsKeepAlive=null;  // Chrome: prevent pause-timeout bug
+
+const _TTS_ICON_PLAY='<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072M12 6a7 7 0 010 12M8.464 8.464a5 5 0 000 7.072"/></svg>';
+const _TTS_ICON_STOP='<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>';
+
 function _clearTtsBtn(){
-  if(_ttsBtn){_ttsBtn.classList.remove('speaking');_ttsBtn.innerHTML='<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072M12 6a7 7 0 010 12M8.464 8.464a5 5 0 000 7.072"/></svg>Read aloud';_ttsBtn=null;}
+  if(_ttsBtn){
+    _ttsBtn.classList.remove('speaking','tts-active');
+    _ttsBtn.innerHTML=_TTS_ICON_PLAY+'Read aloud';
+    _ttsBtn=null;
+  }
 }
+
+function _stopTts(){
+  _ttsRunning=false;_ttsChunks=[];_ttsIdx=0;
+  if(_ttsKeepAlive){clearInterval(_ttsKeepAlive);_ttsKeepAlive=null;}
+  try{window.speechSynthesis.cancel();}catch(e){}
+  _clearTtsBtn();
+}
+
 function speakMsg(mid,btn){
-  if(_ttsBtn===btn){window.speechSynthesis.cancel();_clearTtsBtn();return;}
-  window.speechSynthesis.cancel();_clearTtsBtn();
+  if(_ttsBtn===btn){_stopTts();return;}
+  _stopTts();
   const el=document.getElementById(mid);if(!el)return;
   _startTts(el.innerText,btn);
 }
-function autoSpeak(text){window.speechSynthesis.cancel();_clearTtsBtn();_startTts(text,null);}
+
+function autoSpeak(text){_stopTts();_startTts(text,null);}
+
 function _startTts(rawText,btn){
-  if(!window.speechSynthesis)return;
-  const clean=rawText.replace(/```[\s\S]*?```/g,' ').replace(/`[^`]+`/g,' ').replace(/#{1,6}\s/g,'').replace(/\*{1,3}([^*]+)\*{1,3}/g,'$1').replace(/\[([^\]]+)\]\([^)]+\)/g,'$1').replace(/[🌐⚠️✅❌💡🔍✍️🧠🎤]/g,'').replace(/\s+/g,' ').trim().slice(0,3000);
-  if(!clean)return;
-  const utt=new SpeechSynthesisUtterance(clean);utt.lang='en-US';utt.rate=0.92;utt.pitch=1.0;utt.volume=1.0;
-  const _go=()=>{const v=_getUSVoice();if(v)utt.voice=v;if(btn){_ttsBtn=btn;btn.classList.add('speaking');btn.innerHTML='<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>Stop reading';}utt.onend=()=>{_clearTtsBtn();};utt.onerror=()=>{_clearTtsBtn();};window.speechSynthesis.speak(utt);};
-  if(window.speechSynthesis.getVoices().length>0)_go();
-  else window.speechSynthesis.onvoiceschanged=()=>{window.speechSynthesis.onvoiceschanged=null;_go();};
+  if(!window.speechSynthesis){
+    toast('Text-to-speech is not supported in this browser','err',3000);
+    return;
+  }
+  const cleaned=_cleanForTts(rawText);
+  if(!cleaned)return;
+
+  const lang=_detectTtsLang(cleaned);
+  const chunks=_splitTtsChunks(cleaned);
+  if(!chunks.length)return;
+
+  _ttsChunks=chunks;_ttsIdx=0;_ttsRunning=true;_ttsLang=lang;
+
+  const _begin=()=>{
+    _ttsVoice=_getBestTtsVoice(lang);
+    if(btn){
+      _ttsBtn=btn;
+      btn.classList.add('speaking','tts-active');
+      const langLabel=_TTS_LANG_LABELS[lang]||(lang!=='en-US'?lang:'');
+      btn.innerHTML=_TTS_ICON_STOP+(langLabel?`Reading (${langLabel})`:'Stop reading');
+    }
+    // Chrome bug: speech synthesis silently stops after ~15s if the tab isn't focused.
+    // Workaround: pause+resume every 10s to reset the Chrome internal timer.
+    if(_ttsKeepAlive){clearInterval(_ttsKeepAlive);}
+    _ttsKeepAlive=setInterval(()=>{
+      if(!_ttsRunning){clearInterval(_ttsKeepAlive);_ttsKeepAlive=null;return;}
+      if(window.speechSynthesis.speaking&&!window.speechSynthesis.paused){
+        window.speechSynthesis.pause();
+        setTimeout(()=>{if(_ttsRunning)window.speechSynthesis.resume();},50);
+      }
+    },10000);
+    _speakNextChunk();
+  };
+
+  // Voices may not be loaded yet on first call
+  const voices=window.speechSynthesis.getVoices();
+  if(voices.length>0){_begin();}
+  else{
+    window.speechSynthesis.onvoiceschanged=()=>{
+      window.speechSynthesis.onvoiceschanged=null;
+      _begin();
+    };
+  }
+}
+
+function _speakNextChunk(){
+  if(!_ttsRunning||_ttsIdx>=_ttsChunks.length){_stopTts();return;}
+  const text=_ttsChunks[_ttsIdx++];
+  if(!text.trim()){_speakNextChunk();return;} // skip empty
+
+  const utt=new SpeechSynthesisUtterance(text);
+  utt.lang=_ttsLang;
+
+  // Natural rate/pitch per language family
+  if(_ttsLang.endsWith('-IN')||_ttsLang.startsWith('hi')||_ttsLang.startsWith('ar')){
+    utt.rate=0.90;utt.pitch=1.0; // Indian/Arabic: slightly slower feels more natural
+  }else if(_ttsLang.startsWith('zh')||_ttsLang.startsWith('ja')){
+    utt.rate=0.88;utt.pitch=1.05; // CJK: slower with slight pitch lift
+  }else if(_ttsLang.startsWith('ko')){
+    utt.rate=0.90;utt.pitch=1.0;
+  }else{
+    utt.rate=0.94;utt.pitch=1.0; // English / European: near-natural
+  }
+  utt.volume=1.0;
+
+  if(_ttsVoice)utt.voice=_ttsVoice;
+
+  utt.onend=()=>{
+    if(_ttsRunning){
+      // Small inter-chunk pause for natural breathing rhythm
+      setTimeout(_speakNextChunk,_ttsLang.startsWith('zh')||_ttsLang.startsWith('ja')?120:70);
+    }
+  };
+
+  utt.onerror=ev=>{
+    // 'interrupted' / 'canceled' = user stopped → normal, no action
+    if(ev.error==='interrupted'||ev.error==='canceled')return;
+    // 'network' = voice not downloaded yet, skip chunk
+    if(ev.error==='network'&&_ttsRunning){setTimeout(_speakNextChunk,200);return;}
+    console.warn('[TTS]',ev.error,text.slice(0,40));
+    if(_ttsRunning){setTimeout(_speakNextChunk,100);} // skip bad chunk, keep going
+  };
+
+  try{window.speechSynthesis.speak(utt);}
+  catch(e){_stopTts();toast('TTS error: '+e.message,'err',3000);}
 }
 
 // ══════════════════════════════════════
