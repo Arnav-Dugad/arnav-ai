@@ -1012,10 +1012,11 @@ function appendAIBubble(text,webUsed,msgIndex,elapsed){
   const wc=wordCount(text);
   const wcBadge=`<span class="word-badge">${wc}w</span>`;
   const _ft=new Date().toLocaleString('en-US',{weekday:'short',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+  const _aiLabel=_currentModelLabel();
   d.innerHTML=`<div class="ai-ava"><svg viewBox="0 0 20 20" fill="none"><path d="M10 2L12.2 7.5H18L13.5 10.8L15.3 16.5L10 13.2L4.7 16.5L6.5 10.8L2 7.5H7.8L10 2Z" fill="white"/></svg></div>
   <div class="ai-body-wrap">
     <div class="ai-meta">
-      <span class="ai-name">${window.MODEL||'AI'}</span>
+      <span class="ai-name">${esc(_aiLabel)}</span>
       <span class="ai-time" data-fulltime="${_ft}">${tStr()}</span>${wb}${timeBadge}${wcBadge}
     </div>
     <div class="ai-body" id="${mid}">${fmt(text)}</div>
@@ -1214,10 +1215,11 @@ function _createStreamBubble(webUsed,msgIndex,elapsed){
   const mid='msg'+Date.now()+Math.random().toString(36).slice(2,5);
   const timeBadge=elapsed?`<span class="resp-time">${elapsed}s</span>`:'';
   const ft=new Date().toLocaleString('en-US',{weekday:'short',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+  const _slabel=_currentModelLabel();
   d.innerHTML=`<div class="ai-ava"><svg viewBox="0 0 20 20" fill="none"><path d="M10 2L12.2 7.5H18L13.5 10.8L15.3 16.5L10 13.2L4.7 16.5L6.5 10.8L2 7.5H7.8L10 2Z" fill="white"/></svg></div>
   <div class="ai-body-wrap">
     <div class="ai-meta">
-      <span class="ai-name">${window.MODEL||'AI'}</span>
+      <span class="ai-name">${esc(_slabel)}</span>
       <span class="ai-time" data-fulltime="${ft}">${tStr()}</span>${wb}${timeBadge}
     </div>
     <div class="ai-body streaming" id="${mid}"></div>
@@ -1345,7 +1347,12 @@ async function callAPI(text,isNew){
       _setGenerating(false);
       return;
     }
-    if(!res.ok)throw new Error('API error '+res.status);
+    if(!res.ok){
+      // Extract the detail message from the backend error body
+      let errMsg='API error '+res.status;
+      try{const eb=await res.json();if(eb.detail)errMsg=eb.detail;}catch(e){}
+      throw new Error(errMsg);
+    }
 
     _abortController=null;
     const data=await res.json();
@@ -1388,7 +1395,6 @@ async function callAPI(text,isNew){
   }catch(err){
     _abortController=null;
     if(err.name==='AbortError'||stopRequested){
-      // User clicked Stop — clean up silently
       if(_onThisChat())hideTyping();
       busy=false;$('stop-btn').classList.remove('on');
       $('stop-btn').onclick=stopGen;
@@ -1398,9 +1404,34 @@ async function callAPI(text,isNew){
     }
     if(_onThisChat()){
       hideTyping();
-      appendAIBubble('⚠️ Could not reach the model.\n\n`'+err.message+'`\n\nCheck your HuggingFace Space is running.');
+      const raw=err.message||'Unknown error';
+      let userMsg;
+      if(_activeModelId!=='arnav'){
+        const prov=_API_PROVIDERS[_activeModelId];
+        const provName=prov?.name||_activeModelId;
+        const modelId=_apiKeys[_activeModelId]?.model||'';
+        if(raw.includes('429')||raw.toLowerCase().includes('rate')){
+          userMsg=`⚠️ **Rate limit reached** for ${provName}.\n\nWait a moment and try again. Free-tier keys have per-minute request limits.\n\n*Tip: check your API plan for higher limits.*`;
+        }else if(raw.includes('401')||raw.toLowerCase().includes('invalid api key')||raw.toLowerCase().includes('unauthorized')){
+          userMsg=`⚠️ **Invalid API key** for ${provName}.\n\nGo to **Settings → Custom Models** and check your key.`;
+        }else if(raw.includes('403')){
+          userMsg=`⚠️ **Access denied** for ${provName}.\n\nYour API key may not have access to model \`${modelId}\`.`;
+        }else if(raw.includes('404')||raw.toLowerCase().includes('model not found')){
+          userMsg=`⚠️ **Model not found**: \`${modelId}\`\n\nThis model may not exist or you may not have access to it yet. Try a different model in Settings.`;
+        }else if(raw.includes('503')||raw.toLowerCase().includes('unavailable')){
+          userMsg=`⚠️ **${provName} is temporarily unavailable.** Try again in a moment.`;
+        }else{
+          userMsg=`⚠️ **${provName} error:**\n\n\`${raw}\``;
+        }
+      }else{
+        userMsg=`⚠️ Could not reach the model.\n\n\`${raw}\`\n\nCheck your HuggingFace Space is running.`;
+      }
+      appendAIBubble(userMsg);
     }
-    toast('Connection error — check your Space','err');
+    const toastMsg=_activeModelId!=='arnav'
+      ?(_API_PROVIDERS[_activeModelId]?.name||'Custom model')+' error — see chat'
+      :'Connection error — check your Space';
+    toast(toastMsg,'err');
     busy=false;$('stop-btn').classList.remove('on');
     $('stop-btn').onclick=stopGen;
     $('send-btn').disabled=!$('cinput').value.trim();
@@ -2386,37 +2417,50 @@ function _initFocusMode(){
 const _API_PROVIDERS={
   openai:{
     name:'OpenAI',color:'#10a37f',abbr:'GPT',
+    keyHint:'sk-…',
     models:[
-      {id:'gpt-4o',label:'GPT-4o'},
-      {id:'gpt-4o-mini',label:'GPT-4o mini'},
-      {id:'o1',label:'o1'},
-      {id:'o1-mini',label:'o1 mini'},
-      {id:'gpt-4-turbo',label:'GPT-4 Turbo'},
-      {id:'gpt-3.5-turbo',label:'GPT-3.5 Turbo'},
+      {id:'gpt-5.4-pro',    label:'GPT-5.4 Pro'},
+      {id:'gpt-5.4-thinking',label:'GPT-5.4 Thinking'},
+      {id:'gpt-5.4',        label:'GPT-5.4'},
+      {id:'gpt-5.4-mini',   label:'GPT-5.4 Mini'},
+      {id:'gpt-5.4-nano',   label:'GPT-5.4 Nano'},
+      {id:'gpt-5.3-codex',  label:'GPT-5.3 Codex'},
+      {id:'gpt-4.1',        label:'GPT-4.1  — Legacy / API workhorse'},
+      {id:'gpt-4o',         label:'GPT-4o  — Legacy / Audio only'},
     ]
   },
   anthropic:{
     name:'Anthropic (Claude)',color:'#d4855a',abbr:'CL',
+    keyHint:'sk-ant-…',
     models:[
-      {id:'claude-opus-4-8',label:'Claude Opus 4.8'},
-      {id:'claude-sonnet-4-6',label:'Claude Sonnet 4.6'},
-      {id:'claude-haiku-4-5-20251001',label:'Claude Haiku 4.5'},
-      {id:'claude-3-5-sonnet-20241022',label:'Claude 3.5 Sonnet'},
-      {id:'claude-3-haiku-20240307',label:'Claude 3 Haiku'},
+      {id:'claude-opus-4-8',            label:'Claude Opus 4.8'},
+      {id:'claude-opus-4-7',            label:'Claude Opus 4.7'},
+      {id:'claude-sonnet-4-6',          label:'Claude Sonnet 4.6'},
+      {id:'claude-opus-4-6',            label:'Claude Opus 4.6'},
+      {id:'claude-opus-4-5',            label:'Claude Opus 4.5'},
+      {id:'claude-haiku-4-5-20251001',  label:'Claude Haiku 4.5'},
+      {id:'claude-sonnet-4-5',          label:'Claude Sonnet 4.5'},
+      {id:'claude-mythos-20251001',      label:'Claude Mythos  — Limited preview'},
     ]
   },
   gemini:{
     name:'Google Gemini',color:'#4285f4',abbr:'GM',
+    keyHint:'AIza…',
     models:[
-      {id:'gemini-2.0-flash',label:'Gemini 2.0 Flash'},
-      {id:'gemini-2.0-flash-lite',label:'Gemini 2.0 Flash Lite'},
-      {id:'gemini-1.5-pro',label:'Gemini 1.5 Pro'},
-      {id:'gemini-1.5-flash',label:'Gemini 1.5 Flash'},
+      {id:'gemini-3.5-flash',         label:'Gemini 3.5 Flash'},
+      {id:'gemini-3.1-pro',           label:'Gemini 3.1 Pro'},
+      {id:'gemini-3-flash',           label:'Gemini 3 Flash'},
+      {id:'gemini-3.1-flash-lite',    label:'Gemini 3.1 Flash-Lite'},
+      {id:'gemini-3.1-flash-live',    label:'Gemini 3.1 Flash Live'},
+      {id:'gemini-2.5-pro',           label:'Gemini 2.5 Pro  — Stable'},
+      {id:'gemini-2.5-flash',         label:'Gemini 2.5 Flash  — Stable'},
+      {id:'gemini-deep-research',     label:'Gemini Deep Research'},
     ]
   },
   openai_compat:{
     name:'Custom (OpenAI-compatible)',color:'var(--accent)',abbr:'⚙',
-    models:[] // user enters model name manually
+    keyHint:'API Key',
+    models:[]
   }
 };
 
@@ -2500,17 +2544,40 @@ function setActiveModel(id){
   toast('Model: '+(prov?.name||id),'info',2000);
 }
 
+function _currentModelLabel(){
+  if(_activeModelId==='arnav')return window.MODEL||'Arnav AI';
+  const prov=_API_PROVIDERS[_activeModelId];
+  const kc=_apiKeys[_activeModelId];
+  return prov?.models.find(m=>m.id===kc?.model)?.label?.split('—')[0].trim()||kc?.model||prov?.name||_activeModelId;
+}
+
 function _renderApiKeysForm(){
   ['openai','anthropic','gemini'].forEach(pid=>{
+    const prov=_API_PROVIDERS[pid];
     const kc=_apiKeys[pid]||{};
-    const keyEl=$('apikey-'+pid);const modelEl=$('apimodel-'+pid);
-    if(keyEl)keyEl.value=kc.key||'';
-    if(modelEl&&kc.model)modelEl.value=kc.model;
+    const keyEl=$('apikey-'+pid);
+    const modelEl=$('apimodel-'+pid);
+    // Populate key input
+    if(keyEl){keyEl.value=kc.key||'';keyEl.placeholder=prov.keyHint||'API Key';}
+    // Rebuild select options from provider config (single source of truth)
+    if(modelEl&&prov.models.length){
+      const cur=kc.model||prov.models[0].id;
+      modelEl.innerHTML=prov.models.map(m=>
+        `<option value="${m.id}"${m.id===cur?' selected':''}>${m.label}</option>`
+      ).join('');
+    }
+    // Restore status badge
+    const stEl=$('apikey-status-'+pid);
+    if(stEl){
+      if(kc.ok===true){stEl.textContent='✓';stEl.className='apikey-status apikey-ok';}
+      else if(kc.ok===false){stEl.textContent='✗';stEl.className='apikey-status apikey-err';}
+      else{stEl.textContent='';stEl.className='apikey-status';}
+    }
   });
   const kc=_apiKeys.openai_compat||{};
-  const urlEl=$('apikey-compat-url'),keyEl=$('apikey-compat-key'),modEl=$('apikey-compat-model');
+  const urlEl=$('apikey-compat-url'),cKeyEl=$('apikey-compat-key'),modEl=$('apikey-compat-model');
   if(urlEl)urlEl.value=kc.baseUrl||'';
-  if(keyEl)keyEl.value=kc.key||'';
+  if(cKeyEl)cKeyEl.value=kc.key||'';
   if(modEl)modEl.value=kc.model||'';
 }
 
@@ -2518,8 +2585,15 @@ function saveApiKeys(){
   ['openai','anthropic','gemini'].forEach(pid=>{
     const key=($('apikey-'+pid)?.value||'').trim();
     const model=$('apimodel-'+pid)?.value||_API_PROVIDERS[pid]?.models[0]?.id||'';
-    if(key){_apiKeys[pid]={key,model};}
-    else{delete _apiKeys[pid];if(_activeModelId===pid)setActiveModel('arnav');}
+    if(key){
+      // Preserve ok status if key didn't change
+      const prev=_apiKeys[pid]||{};
+      const ok=(prev.key===key)?prev.ok:undefined;
+      _apiKeys[pid]={key,model,...(ok!==undefined?{ok}:{})};
+    }else{
+      delete _apiKeys[pid];
+      if(_activeModelId===pid)setActiveModel('arnav');
+    }
   });
   const cUrl=($('apikey-compat-url')?.value||'').trim();
   const cKey=($('apikey-compat-key')?.value||'').trim();
@@ -2537,7 +2611,73 @@ function saveApiKeys(){
 
 function toggleApiKeyVis(pid){
   const inp=$('apikey-'+pid);if(!inp)return;
-  inp.type=inp.type==='password'?'text':'password';
+  const isHidden=inp.type==='password';
+  inp.type=isHidden?'text':'password';
+  const btn=$('apikey-vis-'+pid);
+  if(btn)btn.style.opacity=isHidden?'.6':'1';
+}
+
+// Test an API key by sending a minimal request
+async function testApiKey(pid){
+  const keyEl=$('apikey-'+pid);
+  const modelEl=$('apimodel-'+pid);
+  const key=(keyEl?.value||'').trim();
+  if(!key){toast('Enter an API key first','err');return;}
+  const model=modelEl?.value||_API_PROVIDERS[pid]?.models[0]?.id||'';
+  const stEl=$('apikey-status-'+pid);
+  const testBtn=$('apikey-test-'+pid);
+  if(stEl){stEl.textContent='⋯';stEl.className='apikey-status apikey-testing';}
+  if(testBtn){testBtn.disabled=true;testBtn.textContent='Testing…';}
+  try{
+    const u=_fbUser||window._auth?.currentUser;
+    if(!u)throw new Error('Not signed in');
+    const tok=await u.getIdToken();
+    const kc=_apiKeys.openai_compat||{};
+    const res=await fetch(_backendUrl()+'/proxy-chat',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},
+      body:JSON.stringify({
+        provider:pid,api_key:key,model,
+        messages:[{role:'user',content:'Reply with one word: OK'}],
+        api_base_url:pid==='openai_compat'?(kc.baseUrl||''):'',
+        web_search:false,code_mode:false
+      })
+    });
+    if(!res.ok){
+      const e=await res.json().catch(()=>({}));
+      const status=res.status;
+      // 429 rate limit means the key IS valid, just hit the limit
+      if(status===429){
+        if(stEl){stEl.textContent='⚠ Rate limit';stEl.className='apikey-status apikey-warn';}
+        toast(_API_PROVIDERS[pid].name+': Key is valid but rate-limited. Wait and try again.','info',5000);
+        if(!_apiKeys[pid]||_apiKeys[pid].key!==key)_apiKeys[pid]={key,model};
+        _apiKeys[pid].ok=true; // treat rate limit as valid key
+        _saveApiKeysToStorage();
+        return;
+      }
+      throw new Error(e.detail||'HTTP '+status);
+    }
+    if(stEl){stEl.textContent='✓ Connected';stEl.className='apikey-status apikey-ok';}
+    toast(_API_PROVIDERS[pid].name+' — connected! ✓','ok',3000);
+    if(!_apiKeys[pid])_apiKeys[pid]={};
+    _apiKeys[pid].key=key;_apiKeys[pid].model=model;_apiKeys[pid].ok=true;
+    _saveApiKeysToStorage();
+    _updateModelSelector();
+  }catch(err){
+    const msg=err.message||'';
+    let hint=msg;
+    if(msg.includes('401')||msg.toLowerCase().includes('invalid')||msg.toLowerCase().includes('auth'))
+      hint='Invalid API key — check your key';
+    else if(msg.includes('403'))hint='Access denied — check permissions';
+    else if(msg.includes('404'))hint='Model not found — try a different model';
+    else if(msg.includes('503')||msg.includes('unavailable'))hint='Service unavailable — try again later';
+    if(stEl){stEl.textContent='✗ '+hint;stEl.className='apikey-status apikey-err';}
+    toast(_API_PROVIDERS[pid].name+' error: '+hint,'err',5000);
+    if(_apiKeys[pid])_apiKeys[pid].ok=false;
+    _saveApiKeysToStorage();
+  }finally{
+    if(testBtn){testBtn.disabled=false;testBtn.textContent='Test';}
+  }
 }
 
 // ══════════════════════════════════════
