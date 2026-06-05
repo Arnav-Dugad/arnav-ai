@@ -185,8 +185,9 @@ function onLogin(u){
   $('u-avatar').style.background=_avatarGradient(_n);
   loadFirestoreHistory(u.uid);
   loadBookmarks(u.uid);
-  loadSubscription();
+  loadSubscription().then(()=>_checkPendingSession());
   loadProfile(u.uid);
+  _loadApiKeys();
   initPersona();
   renderDailyBar();
   _initFocusMode();
@@ -304,6 +305,7 @@ function openSettings(){
   const sp=$('system-prompt-input');
   if(sp)sp.value=systemPrompt;
   updateSysCount();
+  _renderApiKeysForm();
   $('settings-modal').classList.add('on');
 }
 function openShortcuts(){closeUserMenu();$('shortcuts-modal').classList.add('on');}
@@ -1315,10 +1317,22 @@ async function callAPI(text,isNew){
     const _combinedSys=_buildSystemPrompt();
     const msgsToSend=_combinedSys?[{role:'system',content:_combinedSys},..._cMsgs]:_cMsgs;
 
-    const res=await fetch(window.API_URL,{
+    // Choose endpoint: proxy for custom API keys, default for Arnav AI
+    let _fetchUrl=window.API_URL;
+    let _fetchBody={messages:msgsToSend,web_search:_webSearch,code_mode:_codeActive};
+    if(_activeModelId!=='arnav'){
+      const kc=_apiKeys[_activeModelId];
+      if(kc&&kc.key){
+        _fetchUrl=_backendUrl()+'/proxy-chat';
+        _fetchBody={..._fetchBody,provider:_activeModelId,api_key:kc.key,model:kc.model||'',api_base_url:kc.baseUrl||''};
+      }else{
+        toast('No API key set for this model. Add it in Settings → Custom Models.','err',4000);
+      }
+    }
+    const res=await fetch(_fetchUrl,{
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},
-      body:JSON.stringify({messages:msgsToSend,web_search:_webSearch,code_mode:_codeActive}),
+      body:JSON.stringify(_fetchBody),
       signal:_abortController.signal
     });
 
@@ -1852,34 +1866,54 @@ async function _persistSubscription(plan,customerId,subId){
 async function manageSubscription(){
   const u=_fbUser||window._auth?.currentUser;
   if(!u){toast('Please sign in first','err');return;}
+
+  // Collect both possible manage buttons and put them in loading state
+  const allBtns=[
+    document.getElementById('manage-sub-btn'),
+    document.getElementById('prof-manage-btn')
+  ].filter(Boolean);
+  const origTexts=allBtns.map(b=>b.textContent);
+  allBtns.forEach(b=>{b.disabled=true;b.textContent='Opening portal…';});
+
+  // Get stored customer ID from Firestore (may be empty — backend will search by email)
   let customerId='';
   try{
     const snap=await window._fsGetDoc(window._fsDoc(window._db,'users',u.uid,'subscription','main'));
     if(snap.exists())customerId=snap.data().stripeCustomerId||'';
   }catch(e){}
-  if(!customerId){
-    toast('No active subscription found. Purchase a plan first.','err',5000);
-    openPlans();return;
-  }
-  const btn=document.getElementById('manage-sub-btn')||document.getElementById('prof-manage-btn');
-  if(btn){const orig=btn.textContent;btn.textContent='Opening…';btn.disabled=true;
-    setTimeout(()=>{btn.textContent=orig;btn.disabled=false;},5000);}
+
   try{
     const tok=await u.getIdToken();
     const origin=window.location.origin||window.location.href.replace(/[^/]*$/,'');
     const path=window.location.pathname||'/';
+    // Always call backend — if customer_id is empty, the backend searches Stripe by email
     const res=await fetch(_backendUrl()+'/create-portal-session',{
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},
-      body:JSON.stringify({customer_id:customerId,return_url:origin+path,user_email:u.email||''})
+      body:JSON.stringify({
+        customer_id:customerId,
+        return_url:origin+path,
+        user_email:u.email||''
+      })
     });
-    if(!res.ok){const e=await res.json().catch(()=>({}));throw new Error(e.detail||'Portal error '+res.status);}
+    if(!res.ok){
+      const e=await res.json().catch(()=>({}));
+      throw new Error(e.detail||'Portal error '+res.status);
+    }
     const data=await res.json();
-    if(data.url)window.location.href=data.url;
-    else throw new Error('No portal URL returned');
+    if(data.url){
+      window.location.href=data.url; // navigating away — no need to reset buttons
+    }else throw new Error('No portal URL returned');
   }catch(err){
-    toast('Billing portal error: '+err.message,'err',6000);
-    if(btn){btn.disabled=false;}
+    allBtns.forEach((b,i)=>{b.disabled=false;b.textContent=origTexts[i]||'Manage Subscription';});
+    const msg=err.message||'';
+    if(msg.includes('No Stripe customer')||msg.includes('not found')||msg.includes('404')){
+      toast('No billing account found for this email. Make sure payment completed, then try again.','err',8000);
+    }else if(msg.includes('configuration')||msg.includes('portal')){
+      toast('Billing portal not fully configured yet. Please contact support.','err',7000);
+    }else{
+      toast('Could not open billing portal: '+msg,'err',6000);
+    }
   }
 }
 
@@ -1887,13 +1921,19 @@ async function _handleStripeRedirect(){
   const params=new URLSearchParams(window.location.search);
   const payment=params.get('payment');
   if(!payment)return;
+  // Strip query AFTER reading params
   window.history.replaceState({},'',window.location.pathname);
 
   if(payment==='success'){
     const sessionId=params.get('session_id');
-    const planHint =params.get('plan')||'';
+    const planHint=params.get('plan')||'';
+    // Store pending session so we can retry if the Space is temporarily down
+    if(sessionId){
+      try{localStorage.setItem('arnav-pending-session',JSON.stringify({sessionId,planHint,ts:Date.now()}));}catch(e){}
+    }
     const activePlan=await _verifyAndSaveSession(sessionId||'',planHint);
     if(activePlan){
+      try{localStorage.removeItem('arnav-pending-session');}catch(e){}
       _applyPlanUI(activePlan);
       _syncPlanCards();
       setTimeout(()=>showPaymentSuccess(activePlan),500);
@@ -1903,6 +1943,27 @@ async function _handleStripeRedirect(){
   }else if(payment==='cancelled'){
     setTimeout(()=>toast('Payment cancelled','info',3000),400);
   }
+}
+
+async function _checkPendingSession(){
+  let pending=null;
+  try{pending=JSON.parse(localStorage.getItem('arnav-pending-session')||'null');}catch(e){}
+  if(!pending)return;
+  // Session tokens expire after 24 hours
+  if(Date.now()-pending.ts>86400000){
+    try{localStorage.removeItem('arnav-pending-session');}catch(e){}
+    return;
+  }
+  // Retry verifying the session silently in the background
+  try{
+    const plan=await _verifyAndSaveSession(pending.sessionId,pending.planHint);
+    if(plan){
+      try{localStorage.removeItem('arnav-pending-session');}catch(e){}
+      _applyPlanUI(plan);
+      _syncPlanCards();
+      toast('Your '+plan+' subscription is now active ⚡','ok',4000);
+    }
+  }catch(e){}
 }
 
 // ══════════════════════════════════════
@@ -2317,6 +2378,166 @@ function _initFocusMode(){
     document.body.classList.add('focus-mode');
     $('focus-btn')?.classList.add('on');
   }
+}
+
+// ══════════════════════════════════════
+// CUSTOM API KEYS  (own Claude / GPT / Gemini keys)
+// ══════════════════════════════════════
+const _API_PROVIDERS={
+  openai:{
+    name:'OpenAI',color:'#10a37f',abbr:'GPT',
+    models:[
+      {id:'gpt-4o',label:'GPT-4o'},
+      {id:'gpt-4o-mini',label:'GPT-4o mini'},
+      {id:'o1',label:'o1'},
+      {id:'o1-mini',label:'o1 mini'},
+      {id:'gpt-4-turbo',label:'GPT-4 Turbo'},
+      {id:'gpt-3.5-turbo',label:'GPT-3.5 Turbo'},
+    ]
+  },
+  anthropic:{
+    name:'Anthropic (Claude)',color:'#d4855a',abbr:'CL',
+    models:[
+      {id:'claude-opus-4-8',label:'Claude Opus 4.8'},
+      {id:'claude-sonnet-4-6',label:'Claude Sonnet 4.6'},
+      {id:'claude-haiku-4-5-20251001',label:'Claude Haiku 4.5'},
+      {id:'claude-3-5-sonnet-20241022',label:'Claude 3.5 Sonnet'},
+      {id:'claude-3-haiku-20240307',label:'Claude 3 Haiku'},
+    ]
+  },
+  gemini:{
+    name:'Google Gemini',color:'#4285f4',abbr:'GM',
+    models:[
+      {id:'gemini-2.0-flash',label:'Gemini 2.0 Flash'},
+      {id:'gemini-2.0-flash-lite',label:'Gemini 2.0 Flash Lite'},
+      {id:'gemini-1.5-pro',label:'Gemini 1.5 Pro'},
+      {id:'gemini-1.5-flash',label:'Gemini 1.5 Flash'},
+    ]
+  },
+  openai_compat:{
+    name:'Custom (OpenAI-compatible)',color:'var(--accent)',abbr:'⚙',
+    models:[] // user enters model name manually
+  }
+};
+
+let _apiKeys={};  // {provider: {key, model, baseUrl?}}
+let _activeModelId='arnav';
+
+function _loadApiKeys(){
+  try{_apiKeys=JSON.parse(localStorage.getItem('arnav-api-keys')||'{}');}catch(e){_apiKeys={};}
+  _activeModelId=localStorage.getItem('arnav-active-model')||'arnav';
+}
+
+function _saveApiKeysToStorage(){
+  localStorage.setItem('arnav-api-keys',JSON.stringify(_apiKeys));
+}
+
+function _updateModelSelector(){
+  const nameEl=$('model-name'),dotEl=$('model-dot');
+  if(!nameEl)return;
+  if(_activeModelId==='arnav'){
+    nameEl.textContent=window.MODEL||'Arnav AI';
+    if(dotEl){dotEl.style.background='';dotEl.style.boxShadow='';}
+    return;
+  }
+  const prov=_API_PROVIDERS[_activeModelId];
+  const kc=_apiKeys[_activeModelId];
+  const modelLabel=prov?.models.find(m=>m.id===kc?.model)?.label||kc?.model||prov?.name||_activeModelId;
+  nameEl.textContent=modelLabel;
+  if(dotEl&&prov?.color){
+    dotEl.style.background=prov.color;
+    dotEl.style.boxShadow='0 0 5px '+prov.color+'99';
+  }
+}
+
+let _modelDdOpen=false;
+function toggleModelSelector(){
+  const dd=$('model-dropdown');if(!dd)return;
+  if(_modelDdOpen){dd.classList.remove('on');_modelDdOpen=false;return;}
+
+  const items=[
+    {id:'arnav',name:window.MODEL||'Arnav AI',sub:'Default model',active:_activeModelId==='arnav',color:'var(--success)'}
+  ];
+  Object.entries(_API_PROVIDERS).forEach(([pid,prov])=>{
+    const kc=_apiKeys[pid];
+    if(!kc||!kc.key)return;
+    const modelLabel=prov.models.find(m=>m.id===kc.model)?.label||kc.model||prov.name;
+    items.push({id:pid,name:modelLabel,sub:prov.name,active:_activeModelId===pid,color:prov.color});
+  });
+
+  let html=items.map(item=>`
+    <div class="model-dd-item${item.active?' active':''}" onclick="setActiveModel('${item.id}')">
+      <div class="model-dd-dot" style="background:${item.color};box-shadow:0 0 5px ${item.color}66"></div>
+      <div class="model-dd-info">
+        <div class="model-dd-name">${esc(item.name)}</div>
+        <div class="model-dd-sub">${esc(item.sub)}</div>
+      </div>
+      ${item.active?'<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="13" height="13"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>':''}
+    </div>`).join('');
+
+  const hasCustom=Object.values(_apiKeys).some(k=>k&&k.key);
+  if(!hasCustom){
+    html+='<div class="model-dd-hint">Add API keys in Settings to use Claude, GPT-4, Gemini &amp; more</div>';
+  }else{
+    html+='<div class="model-dd-footer" onclick="openSettings()">⚙ Manage API keys</div>';
+  }
+
+  dd.innerHTML=html;
+  dd.classList.add('on');
+  _modelDdOpen=true;
+  setTimeout(()=>document.addEventListener('click',_closeModelDdOutside,{once:true}),10);
+}
+function _closeModelDdOutside(e){
+  if($('model-selector')?.contains(e.target))return;
+  $('model-dropdown')?.classList.remove('on');_modelDdOpen=false;
+}
+function setActiveModel(id){
+  _activeModelId=id;
+  localStorage.setItem('arnav-active-model',id);
+  _updateModelSelector();
+  $('model-dropdown')?.classList.remove('on');_modelDdOpen=false;
+  const prov=id==='arnav'?{name:window.MODEL||'Arnav AI'}:_API_PROVIDERS[id];
+  toast('Model: '+(prov?.name||id),'info',2000);
+}
+
+function _renderApiKeysForm(){
+  ['openai','anthropic','gemini'].forEach(pid=>{
+    const kc=_apiKeys[pid]||{};
+    const keyEl=$('apikey-'+pid);const modelEl=$('apimodel-'+pid);
+    if(keyEl)keyEl.value=kc.key||'';
+    if(modelEl&&kc.model)modelEl.value=kc.model;
+  });
+  const kc=_apiKeys.openai_compat||{};
+  const urlEl=$('apikey-compat-url'),keyEl=$('apikey-compat-key'),modEl=$('apikey-compat-model');
+  if(urlEl)urlEl.value=kc.baseUrl||'';
+  if(keyEl)keyEl.value=kc.key||'';
+  if(modEl)modEl.value=kc.model||'';
+}
+
+function saveApiKeys(){
+  ['openai','anthropic','gemini'].forEach(pid=>{
+    const key=($('apikey-'+pid)?.value||'').trim();
+    const model=$('apimodel-'+pid)?.value||_API_PROVIDERS[pid]?.models[0]?.id||'';
+    if(key){_apiKeys[pid]={key,model};}
+    else{delete _apiKeys[pid];if(_activeModelId===pid)setActiveModel('arnav');}
+  });
+  const cUrl=($('apikey-compat-url')?.value||'').trim();
+  const cKey=($('apikey-compat-key')?.value||'').trim();
+  const cModel=($('apikey-compat-model')?.value||'').trim();
+  if(cKey&&cUrl){
+    _apiKeys.openai_compat={key:cKey,baseUrl:cUrl,model:cModel||'gpt-3.5-turbo'};
+  }else{
+    delete _apiKeys.openai_compat;
+    if(_activeModelId==='openai_compat')setActiveModel('arnav');
+  }
+  _saveApiKeysToStorage();
+  _updateModelSelector();
+  toast('API keys saved','ok',2000);
+}
+
+function toggleApiKeyVis(pid){
+  const inp=$('apikey-'+pid);if(!inp)return;
+  inp.type=inp.type==='password'?'text':'password';
 }
 
 // ══════════════════════════════════════
