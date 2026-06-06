@@ -251,7 +251,7 @@
     <!-- Hidden file input for attachments -->
     <input type="file" id="file-input" multiple accept="image/*,.txt,.md,.csv,.py,.js,.ts,.jsx,.tsx,.html,.css,.json,.yaml,.yml,.sh,.sql,.xml,.go,.rs,.java,.c,.cpp,.h,.rb,.swift,.kt" style="display:none" onchange="onFileSelected(this)">
     <!-- Camera capture input (mobile — triggers native camera) -->
-    <input type="file" id="camera-input" accept="image/*" capture="environment" style="display:none" onchange="onFileSelected(this)">
+    <input type="file" id="camera-input" accept="image/*" capture="environment" style="display:none" onchange="onCameraSelected(this)">
 
     <!-- Drag & drop overlay -->
     <div class="drag-overlay" id="drag-overlay">
