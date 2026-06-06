@@ -65,25 +65,33 @@ function applyTheme(name){
 applyTheme(localStorage.getItem('arnav-theme')||'dark');
 
 // ── settings state ──
-const settings={tts:false,sound:false,compact:false,scroll:true,lines:false,alwaysNewChat:false};
+const settings={tts:false,sound:false,compact:false,scroll:true,lines:false,alwaysNewChat:false,responseLength:'normal'};
+const _LEN_INSTR={
+  brief:'Be very concise. Use 1-3 sentences or a short paragraph at most.',
+  detailed:'Be thorough and well-structured. Use examples, sub-sections, and clear explanations.',
+  long:'Provide a comprehensive, in-depth response. Cover all aspects exhaustively with examples and context.'
+};
+const _LEN_LABELS={brief:'Brief',normal:'Normal',detailed:'Detailed',long:'Long'};
 function loadSettings(){
   try{const s=JSON.parse(localStorage.getItem('arnav-settings')||'{}');Object.assign(settings,s);}catch(e){}
-  Object.keys(settings).forEach(k=>{if(settings[k])$('tog-'+k)?.classList.add('on');});
+  Object.keys(settings).forEach(k=>{if(settings[k]&&k!=='responseLength')$('tog-'+k)?.classList.add('on');});
   if(settings.compact)document.body.classList.add('compact-mode');
   // Load system prompt
   const sp=$('system-prompt-input');
   if(sp)sp.value=localStorage.getItem('arnav-system')||'';
+  _applyLenSetting();
 }
 function saveSettings(){localStorage.setItem('arnav-settings',JSON.stringify(settings));}
 function resetSettings(){
   const hadLines=settings.lines;
-  const defaults={tts:false,sound:false,compact:false,scroll:true,lines:false,alwaysNewChat:false};
+  const defaults={tts:false,sound:false,compact:false,scroll:true,lines:false,alwaysNewChat:false,responseLength:'normal'};
   Object.assign(settings,defaults);
   Object.keys(defaults).forEach(k=>{$('tog-'+k)?.classList.toggle('on',defaults[k]);});
   document.body.classList.remove('compact-mode');
   if(hadLines)applyLineNumbers();
   fontSize=15;applyFontSize();
   applyTheme('dark');
+  _applyLenSetting();
   saveSettings();
   toast('Settings reset to defaults','info');
 }
@@ -190,6 +198,7 @@ function onLogin(u){
   loadSubscription().then(()=>_checkPendingSession());
   loadProfile(u.uid);
   _loadApiKeys();
+  _updateModelSelector();
   initPersona();
   renderDailyBar();
   _initFocusMode();
@@ -311,7 +320,43 @@ function openSettings(){
   if(sp)sp.value=systemPrompt;
   updateSysCount();
   _renderApiKeysForm();
+  _refreshSysPromptTemplates();
   $('settings-modal').classList.add('on');
+}
+
+// ── System prompt templates (localStorage) ──
+function _getSysPromptTemplates(){try{return JSON.parse(localStorage.getItem('arnav-sys-tpls')||'[]');}catch(e){return[];}}
+function _setSysPromptTemplates(arr){localStorage.setItem('arnav-sys-tpls',JSON.stringify(arr));}
+function _refreshSysPromptTemplates(){
+  const sel=$('prompt-tpl-select');if(!sel)return;
+  const tpls=_getSysPromptTemplates();
+  sel.innerHTML='<option value="">Load saved template…</option>'+tpls.map(t=>`<option value="${esc(t.name)}">${esc(t.name)}</option>`).join('');
+  $('del-tpl-btn')&&($('del-tpl-btn').style.display='none');
+}
+function saveSysPromptTemplate(){
+  const ta=$('system-prompt-input');if(!ta||!ta.value.trim()){toast('Enter a prompt first','info');return;}
+  const name=prompt('Template name:','');if(!name||!name.trim())return;
+  const tpls=_getSysPromptTemplates().filter(t=>t.name!==name.trim());
+  tpls.unshift({name:name.trim(),prompt:ta.value.trim()});
+  _setSysPromptTemplates(tpls.slice(0,20));
+  _refreshSysPromptTemplates();
+  toast('Template saved','ok',1800);
+}
+function loadSysPromptTemplate(name){
+  if(!name)return;
+  const tpls=_getSysPromptTemplates();
+  const t=tpls.find(t=>t.name===name);if(!t)return;
+  const ta=$('system-prompt-input');if(ta){ta.value=t.prompt;updateSysCount();}
+  const delBtn=$('del-tpl-btn');if(delBtn)delBtn.style.display='';
+}
+function deleteSysPromptTemplate(){
+  const sel=$('prompt-tpl-select');if(!sel||!sel.value)return;
+  const name=sel.value;
+  if(!confirm('Delete template "'+name+'"?'))return;
+  _setSysPromptTemplates(_getSysPromptTemplates().filter(t=>t.name!==name));
+  _refreshSysPromptTemplates();
+  const ta=$('system-prompt-input');if(ta){ta.value='';updateSysCount();}
+  toast('Template deleted','info');
 }
 function openShortcuts(){closeUserMenu();$('shortcuts-modal').classList.add('on');}
 function closeUserMenu(){uMenuOpen=false;$('u-menu').classList.remove('on');$('u-chevron')?.classList.remove('up');}
@@ -388,9 +433,15 @@ function _getDateGroup(ts){
 
 function _makeHistItem(item){
   const d=document.createElement('div');
-  d.className='hist-item'+(item.id===currentChatId?' on':'')+(item.pinned?' pinned':'')+(item.color?' has-label':'');
+  d.className='hist-item'+(item.id===currentChatId?' on':'')+(item.pinned?' pinned':'')+(item.color?' has-label':'')+(_bulkMode?' bulk-mode':'')+(_bulkSelected.has(item.id)?' bulk-sel':'');
   if(item.color)d.style.setProperty('--label-color',item.color);
   d.dataset.id=item.id;
+  if(_bulkMode){
+    d.onclick=()=>toggleBulkSelect(item.id);
+    d.innerHTML=`<input type="checkbox" class="bulk-cb" ${_bulkSelected.has(item.id)?'checked':''} onclick="event.stopPropagation();toggleBulkSelect('${item.id}')">
+      <span class="hist-item-text">${esc(item.title)}</span>`;
+    return d;
+  }
   const pinIco=item.pinned?'<svg class="pin-icon" fill="currentColor" viewBox="0 0 24 24" width="10" height="10"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>':'';
   d.innerHTML=`<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
     <span class="hist-item-text" ondblclick="startRename(event,'${item.id}')">${esc(item.title)}</span>
@@ -499,18 +550,58 @@ function setConvColor(id,color){
   toast(color?'Label applied':'Label removed','info',1500);
 }
 
-async function delConversation(e,id){
-  e.stopPropagation();
+async function delConversationById(id){
   allHistory=allHistory.filter(h=>h.id!==id);
   delete sessions[id];
-  renderHistory(allHistory);
   try{localStorage.setItem('arnav-history',JSON.stringify(allHistory));}catch(e2){}
   if(currentUserId&&window._db){try{await window._fsDel(window._fsDoc(window._db,'users',currentUserId,'conversations',id));}catch(err){}}
   const removed=bookmarks.filter(b=>b.conversationId===id);
   removed.forEach(b=>bookmarksSet.delete(b.conversationId+'-'+b.messageIndex));
   bookmarks=bookmarks.filter(b=>b.conversationId!==id);
   if(id===currentChatId)newChat();
+}
+async function delConversation(e,id){
+  e.stopPropagation();
+  await delConversationById(id);
+  renderHistory(allHistory);
   toast('Conversation deleted','info');
+}
+
+// ── Bulk conversation operations ──
+let _bulkMode=false,_bulkSelected=new Set();
+function toggleBulkMode(){
+  _bulkMode=!_bulkMode;
+  _bulkSelected.clear();
+  $('bulk-action-bar').style.display=_bulkMode?'flex':'none';
+  $('sb-bulk-btn')?.classList.toggle('on',_bulkMode);
+  $('bulk-count-label').textContent='0 selected';
+  renderHistory(allHistory);
+}
+function toggleBulkSelect(id){
+  if(_bulkSelected.has(id))_bulkSelected.delete(id);
+  else _bulkSelected.add(id);
+  $('bulk-count-label').textContent=_bulkSelected.size+' selected';
+  document.querySelectorAll('.hist-item[data-id="'+id+'"] .bulk-cb').forEach(cb=>cb.checked=_bulkSelected.has(id));
+  document.querySelectorAll('.hist-item[data-id="'+id+'"]').forEach(el=>el.classList.toggle('bulk-sel',_bulkSelected.has(id)));
+}
+function bulkSelectAll(){
+  allHistory.forEach(h=>_bulkSelected.add(h.id));
+  $('bulk-count-label').textContent=_bulkSelected.size+' selected';
+  document.querySelectorAll('.hist-item').forEach(el=>{
+    el.classList.add('bulk-sel');
+    const cb=el.querySelector('.bulk-cb');if(cb)cb.checked=true;
+  });
+}
+async function bulkDelete(){
+  const count=_bulkSelected.size;
+  if(!count){toast('Nothing selected','info');return;}
+  if(!confirm('Delete '+count+' conversation'+(count!==1?'s':'')+'?'))return;
+  const ids=[..._bulkSelected];
+  await Promise.all(ids.map(id=>delConversationById(id)));
+  _bulkSelected.clear();
+  toggleBulkMode();
+  renderHistory(allHistory);
+  toast('Deleted '+count+' conversation'+(count!==1?'s':''),'ok');
 }
 
 let _clearConfirmTimer=null;
@@ -599,10 +690,13 @@ function newChat(){
 function loadChat(id){
   const s=sessions[id];if(!s)return;
   closeConvSearch();
+  // Clear any pending attachments/input from the previous chat
+  _pendingAttachments=[];_renderAttachPreviews();
+  const _inp=$('cinput');if(_inp){_inp.value='';_inp.style.height='auto';}
   currentChatId=id;msgs=[...s.msgs];chatTitle=s.title;
   $('tb-title').textContent=chatTitle;
   $('msgs-inner').innerHTML='';
-  msgs.forEach((m,i)=>{if(m.role==='user')appendUserBubble(m.content,i,m.images);else appendAIBubble(m.content,false,i);});
+  msgs.forEach((m,i)=>{if(m.role==='user')appendUserBubble(m.content,i,m.images,m.ts);else appendAIBubble(m.content,false,i,null,m.ts);});
   renderHistory(allHistory);
   if(window.innerWidth<=720)closeSb();
   scrollDown();
@@ -657,6 +751,8 @@ function toggleCodeMode(){
 
 function _buildSystemPrompt(){
   const parts=[];
+  const len=settings.responseLength||'normal';
+  if(_LEN_INSTR[len])parts.push(_LEN_INSTR[len]);
   if(_personaBasePrompt)parts.push(_personaBasePrompt);
   if(codeMode)parts.push(_CODE_MODE_PROMPT);
   if(systemPrompt)parts.push(systemPrompt);
@@ -815,12 +911,44 @@ function applyLineNumbers(){
 // ══════════════════════════════════════
 // MARKDOWN FORMATTER  (fixed 2-stage pipeline)
 // ══════════════════════════════════════
+function _renderMath(expr,displayMode){
+  if(window.katex){
+    try{
+      return window.katex.renderToString(expr,{displayMode,throwOnError:false,errorColor:'var(--danger)',trust:false});
+    }catch(e){}
+  }
+  // Fallback when KaTeX not loaded yet
+  return displayMode
+    ?`<code class="math-fallback math-display-fb">${esc(expr)}</code>`
+    :`<code class="math-fallback">${esc(expr)}</code>`;
+}
+
 function fmt(raw){
   const blocks=[];
+  const mathExprs=[];
+
+  let t=raw;
+
+  // ── PRE-STAGE: extract math expressions BEFORE HTML-encoding ──
+
+  // Display math: $$...$$ (block level)
+  t=t.replace(/\$\$([\s\S]+?)\$\$/g,(m,expr)=>{
+    const html=`<div class="math-display">${_renderMath(expr.trim(),true)}</div>`;
+    mathExprs.push({display:true,html});
+    return'\x00MB'+(mathExprs.length-1)+'\x00';
+  });
+
+  // Inline math: $...$ (skip if looks like currency — must contain a math operator or letter)
+  t=t.replace(/\$([^\$\n]{1,250}?)\$/g,(m,expr)=>{
+    if(!/[a-zA-Z\\^_{}+\-=\/<>|]/.test(expr))return m;
+    const html=_renderMath(expr.trim(),false);
+    mathExprs.push({display:false,html});
+    return'\x00MI'+(mathExprs.length-1)+'\x00';
+  });
 
   // ── STAGE 1: extract fenced code blocks BEFORE HTML-encoding
   // so hljs receives the raw source text (not &lt; etc.)
-  let t=raw.replace(/```(\w*)\n?([\s\S]*?)```/g,(m,lang,code)=>{
+  t=t.replace(/```(\w*)\n?([\s\S]*?)```/g,(m,lang,code)=>{
     const l=(lang||'code').toLowerCase();
     const trimmed=code.trim();
     const lineCount=trimmed.split('\n').length;
@@ -850,6 +978,8 @@ function fmt(raw){
   // Replace tokens with a block-level div so the paragraph processor
   // treats each code block as a block element (not inline text)
   t=t.replace(/\x00CB(\d+)\x00/g,'<div data-cb="$1"></div>');
+  // Display math → block-level div; inline math → span placeholder
+  t=t.replace(/\x00MB(\d+)\x00/g,'<div data-mb="$1"></div>');
 
   // ── STAGE 3: markdown transforms on the remaining text
 
@@ -917,8 +1047,11 @@ function fmt(raw){
   }
   if(inP)out+='</p>';
 
-  // ── STAGE 5: restore code blocks
+  // ── STAGE 5: restore code blocks and math expressions
   out=out.replace(/<div data-cb="(\d+)"><\/div>/g,(m,i)=>blocks[+i]||m);
+  out=out.replace(/<div data-mb="(\d+)"><\/div>/g,(m,i)=>mathExprs[+i]?.html||m);
+  // Restore inline math tokens (they survived inside <p> tags)
+  out=out.replace(/\x00MI(\d+)\x00/g,(m,i)=>mathExprs[+i]?.html||m);
 
   return out;
 }
@@ -1011,7 +1144,9 @@ function renderUserBubbleHtml(text,idx,images){
     // Store references in a map for safe retrieval
     images.forEach((img,ii)=>{_imgStore[idx+'_'+ii]=img.dataUrl;});
   }
+  const tsLabel=msgs[idx]?.ts?new Date(msgs[idx].ts).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'';
   return `${imgHtml}${text?`<span class="user-bubble-text">${esc(text)}</span>`:''}
+    ${tsLabel?`<span class="msg-time">${tsLabel}</span>`:''}
     <button class="user-copy-btn" onclick="copyUserMsg(this)" title="Copy"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="11" height="11"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg></button>
     <button class="user-edit-btn" onclick="startEditMsg(${idx})" title="Edit message"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="12" height="12"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>`;
 }
@@ -1024,8 +1159,9 @@ function copyUserMsg(btn){
   });
 }
 
-function appendUserBubble(text,msgIndex,images){
+function appendUserBubble(text,msgIndex,images,ts){
   const e=$('empty-state');if(e)e.remove();
+  if(ts&&msgIndex!==undefined&&msgs[msgIndex]&&!msgs[msgIndex].ts)msgs[msgIndex].ts=ts;
   const d=document.createElement('div');d.className='msg msg-user';
   const bubble=document.createElement('div');bubble.className='user-bubble';
   if(msgIndex!==undefined)bubble.dataset.bubbleIdx=msgIndex;
@@ -1037,7 +1173,7 @@ function bmBtnHtml(active){
   return `<svg fill="${active?'currentColor':'none'}" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>${active?'Saved':'Save'}`;
 }
 
-function appendAIBubble(text,webUsed,msgIndex,elapsed){
+function appendAIBubble(text,webUsed,msgIndex,elapsed,ts){
   const e=$('empty-state');if(e)e.remove();
   const d=document.createElement('div');d.className='msg msg-ai';
   const wb=webUsed?'<span class="web-badge">🌐 web</span>':'';
@@ -1047,13 +1183,15 @@ function appendAIBubble(text,webUsed,msgIndex,elapsed){
   const timeBadge=elapsed?`<span class="resp-time">${elapsed}s</span>`:'';
   const wc=wordCount(text);
   const wcBadge=`<span class="word-badge">${wc}w</span>`;
-  const _ft=new Date().toLocaleString('en-US',{weekday:'short',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+  const _tsMs=ts||msgs[msgIndex]?.ts;
+  const _tDisplay=_tsMs?new Date(_tsMs).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):tStr();
+  const _ft=_tsMs?new Date(_tsMs).toLocaleString('en-US',{weekday:'short',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}):new Date().toLocaleString('en-US',{weekday:'short',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
   const _aiLabel=_currentModelLabel();
   d.innerHTML=`<div class="ai-ava"><svg viewBox="0 0 20 20" fill="none"><path d="M10 2L12.2 7.5H18L13.5 10.8L15.3 16.5L10 13.2L4.7 16.5L6.5 10.8L2 7.5H7.8L10 2Z" fill="white"/></svg></div>
   <div class="ai-body-wrap">
     <div class="ai-meta">
       <span class="ai-name">${esc(_aiLabel)}</span>
-      <span class="ai-time" data-fulltime="${_ft}">${tStr()}</span>${wb}${timeBadge}${wcBadge}
+      <span class="ai-time" data-fulltime="${_ft}">${_tDisplay}</span>${wb}${timeBadge}${wcBadge}
     </div>
     <div class="ai-body" id="${mid}">${fmt(text)}</div>
     <div class="ai-actions">
@@ -1245,6 +1383,188 @@ document.addEventListener('paste',async e=>{
 });
 
 // ══════════════════════════════════════
+// CAMERA CAPTURE
+// ══════════════════════════════════════
+let _cameraStream=null;
+let _cameraFacingMode='environment';
+let _cameraSnapDataUrl=null;
+
+function openCamera(){
+  // On mobile devices use native capture; on desktop use getUserMedia
+  const isMobile=/iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  if(isMobile||!navigator.mediaDevices?.getUserMedia){
+    $('camera-input')?.click();
+    return;
+  }
+  _openCameraModal();
+}
+
+async function _openCameraModal(){
+  const modal=$('camera-modal');if(!modal)return;
+  modal.style.display='flex';
+  _cameraSnapDataUrl=null;
+  const preview=$('camera-snap-preview');
+  if(preview)preview.style.display='none';
+  const video=$('camera-video');
+  if(video)video.style.display='block';
+  const shutter=$('camera-shutter-btn');
+  if(shutter)shutter.disabled=false;
+  await _startCameraStream();
+}
+
+async function _startCameraStream(){
+  if(_cameraStream){_cameraStream.getTracks().forEach(t=>t.stop());_cameraStream=null;}
+  const video=$('camera-video');if(!video)return;
+  try{
+    _cameraStream=await navigator.mediaDevices.getUserMedia({
+      video:{facingMode:_cameraFacingMode,width:{ideal:1280},height:{ideal:720}},
+      audio:false
+    });
+    video.srcObject=_cameraStream;
+  }catch(e){
+    toast('Camera access denied or not available','err',3000);
+    closeCamera();
+  }
+}
+
+async function flipCamera(){
+  _cameraFacingMode=_cameraFacingMode==='environment'?'user':'environment';
+  await _startCameraStream();
+}
+
+function cameraSnap(){
+  const video=$('camera-video');
+  const canvas=$('camera-canvas');
+  if(!video||!canvas)return;
+  canvas.width=video.videoWidth||640;
+  canvas.height=video.videoHeight||480;
+  canvas.getContext('2d').drawImage(video,0,0,canvas.width,canvas.height);
+  _cameraSnapDataUrl=canvas.toDataURL('image/jpeg',0.92);
+  // Show preview
+  const img=$('camera-snap-img');
+  if(img)img.src=_cameraSnapDataUrl;
+  const preview=$('camera-snap-preview');
+  if(preview)preview.style.display='flex';
+  video.style.display='none';
+}
+
+function cameraRetake(){
+  _cameraSnapDataUrl=null;
+  const preview=$('camera-snap-preview');
+  if(preview)preview.style.display='none';
+  const video=$('camera-video');
+  if(video)video.style.display='block';
+}
+
+async function cameraUsePhoto(){
+  if(!_cameraSnapDataUrl){closeCamera();return;}
+  // Convert data URL to File and process as attachment
+  const res=await fetch(_cameraSnapDataUrl);
+  const blob=await res.blob();
+  const file=new File([blob],'camera-capture.jpg',{type:'image/jpeg'});
+  await _processFile(file);
+  _renderAttachPreviews();
+  _updateSendBtn();
+  closeCamera();
+  toast('Photo added','ok',1800);
+}
+
+function closeCamera(){
+  if(_cameraStream){_cameraStream.getTracks().forEach(t=>t.stop());_cameraStream=null;}
+  const modal=$('camera-modal');if(modal)modal.style.display='none';
+  _cameraSnapDataUrl=null;
+}
+
+// Close camera on Escape
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'&&$('camera-modal')?.style.display==='flex')closeCamera();
+});
+
+// ══════════════════════════════════════
+// SPECIAL CHARACTERS PANEL
+// ══════════════════════════════════════
+const _SPEC_TABS={
+  Math:[
+    ['±','∓','×','÷','∙','∗','⁻','⁺','²','³'],
+    ['=','≠','≈','≡','≤','≥','≪','≫','∝','∞'],
+    ['∑','∏','∫','∬','∮','∂','∇','√','∛','∜'],
+    ['½','⅓','¼','¾','⅔','⅛','⅜','⅝','⅞','%'],
+    ['⁰','¹','²','³','⁴','⁵','⁶','⁷','⁸','⁹'],
+    ['₀','₁','₂','₃','₄','₅','₆','₇','₈','₉'],
+  ],
+  Greek:[
+    ['α','β','γ','δ','ε','ζ','η','θ','ι','κ'],
+    ['λ','μ','ν','ξ','ο','π','ρ','σ','τ','υ'],
+    ['φ','χ','ψ','ω','ς','ϕ','ϑ','ϵ','ϰ','ϖ'],
+    ['Α','Β','Γ','Δ','Ε','Ζ','Η','Θ','Ι','Κ'],
+    ['Λ','Μ','Ν','Ξ','Ο','Π','Ρ','Σ','Τ','Υ'],
+    ['Φ','Χ','Ψ','Ω'],
+  ],
+  Arrows:[
+    ['→','←','↑','↓','↔','↕','↗','↘','↙','↖'],
+    ['⇒','⇐','⇑','⇓','⇔','⇕','⇨','⇦','⇧','⇩'],
+    ['➜','➝','➞','➟','➠','➡','⟶','⟵','⟷','↪'],
+    ['↩','↫','↬','↭','↮','↯','↰','↱','↲','↳'],
+  ],
+  Symbols:[
+    ['©','®','™','℃','℉','°','µ','§','¶','†'],
+    ['★','☆','♠','♣','♥','♦','♪','♫','♬','♭'],
+    ['✓','✗','✦','✧','❖','◆','◇','▲','▼','●'],
+    ['…','—','–','«','»','‹','›','"','"','\''],
+    ['€','£','¥','¢','₹','₽','₩','₪','฿','₿'],
+    ['∀','∃','∄','∈','∉','⊂','⊃','⊆','⊇','∪','∩'],
+  ],
+};
+let _specOpen=false;
+let _specActiveTab='Math';
+
+function toggleSpecChars(){
+  _specOpen=!_specOpen;
+  if(_specOpen)_buildSpecPanel();
+  $('spec-dropdown')?.classList.toggle('on',_specOpen);
+  $('spec-btn')?.classList.toggle('on',_specOpen);
+  if(_specOpen){
+    setTimeout(()=>document.addEventListener('click',_specOutsideClick,{once:true}),10);
+  }
+}
+
+function _specOutsideClick(e){
+  if($('spec-wrap')?.contains(e.target)){
+    // re-attach listener if click was inside
+    setTimeout(()=>document.addEventListener('click',_specOutsideClick,{once:true}),10);
+    return;
+  }
+  _specOpen=false;
+  $('spec-dropdown')?.classList.remove('on');
+  $('spec-btn')?.classList.remove('on');
+}
+
+function _buildSpecPanel(){
+  const dd=$('spec-dropdown');if(!dd)return;
+  const tabKeys=Object.keys(_SPEC_TABS);
+  const tabs=tabKeys.map(k=>`<button class="spec-tab${k===_specActiveTab?' active':''}" onclick="specSetTab('${k}');event.stopPropagation()">${k}</button>`).join('');
+  const chars=_SPEC_TABS[_specActiveTab]||[];
+  const grid=chars.map(row=>row.map(c=>`<button class="spec-char" onclick="insertSpecChar('${c.replace(/'/g,"\\'")}');event.stopPropagation()" title="${c}">${c}</button>`).join('')).join('');
+  dd.innerHTML=`<div class="spec-tabs">${tabs}</div><div class="spec-grid">${grid}</div>`;
+}
+
+function specSetTab(tab){
+  _specActiveTab=tab;
+  _buildSpecPanel();
+}
+
+function insertSpecChar(char){
+  const ta=$('cinput');if(!ta)return;
+  const start=ta.selectionStart;
+  const end=ta.selectionEnd;
+  const val=ta.value;
+  ta.value=val.slice(0,start)+char+val.slice(end);
+  ta.selectionStart=ta.selectionEnd=start+char.length;
+  ta.focus();
+  onInput(ta);
+}
+
+// ══════════════════════════════════════
 // FOLLOW-UP SUGGESTION CHIPS
 // ══════════════════════════════════════
 function _generateFollowUps(text){
@@ -1384,8 +1704,9 @@ async function sendMsg(){
     addToHistory(currentChatId,chatTitle,true);
     localStorage.setItem('arnav-last-chat',currentChatId);
   }
-  msgs.push({role:'user',content:msgContent,images:imageAttach.map(i=>({base64:i.base64,mimeType:i.mimeType,name:i.name,dataUrl:i.dataUrl}))});
-  appendUserBubble(msgContent,msgs.length-1,imageAttach);
+  const _userTs=Date.now();
+  msgs.push({role:'user',content:msgContent,ts:_userTs,images:imageAttach.map(i=>({base64:i.base64,mimeType:i.mimeType,name:i.name,dataUrl:i.dataUrl}))});
+  appendUserBubble(msgContent,msgs.length-1,imageAttach,_userTs);
   // Save to sessions IMMEDIATELY so the chat is navigable while generating
   sessions[currentChatId]={msgs:[...msgs],title:chatTitle};
   updateStats(isNew,{webSearch:webSearchMode,modelId:_activeModelId});
@@ -1559,7 +1880,7 @@ async function callAPI(text,isNew,_images){
     const elapsed=((Date.now()-_t0)/1000).toFixed(1);
 
     // Always persist the reply to the correct chat regardless of which chat is visible
-    _cMsgs.push({role:'assistant',content:reply});
+    _cMsgs.push({role:'assistant',content:reply,ts:Date.now()});
     sessions[_cId]={msgs:[..._cMsgs],title:sessions[_cId]?.title||_cTitle};
     saveConversation(_cId,false);
     _trackResponseStats(reply);
@@ -2051,7 +2372,7 @@ async function saveEditMsg(idx){
   const bubble=document.querySelector(`[data-bubble-idx="${idx}"]`);if(!bubble)return;
   const ta=bubble.querySelector('.user-edit-textarea');if(!ta)return;
   const newText=ta.value.trim();if(!newText){toast('Message cannot be empty','err');return;}
-  msgs[idx]={role:'user',content:newText};msgs=msgs.slice(0,idx+1);
+  msgs[idx]={role:'user',content:newText,ts:msgs[idx]?.ts||Date.now()};msgs=msgs.slice(0,idx+1);
   const parentMsg=bubble.closest('.msg');
   if(parentMsg){let next=parentMsg.nextElementSibling;while(next){const rem=next;next=next.nextElementSibling;rem.remove();}}
   bubble.classList.remove('editing');bubble.innerHTML=renderUserBubbleHtml(newText,idx);
@@ -2115,7 +2436,7 @@ async function openStats(){
   }
 }
 function _renderActivityChart(activityMap,container,days){
-  if(!container)return;
+  if(!activityMap||!container)return;
   const today=new Date();
   const bars=[];
   for(let i=days-1;i>=0;i--){
@@ -2193,6 +2514,7 @@ async function removeBookmark(e,bmId,convId,msgIdx){
 // SUBSCRIPTION & PRICING
 // ══════════════════════════════════════
 let _currentPlan='free';
+let _planCardsCache=null,_lastSyncedPlan=null;
 
 function _backendUrl(){
   return window.BACKEND_URL||(window.API_URL||'').replace(/\/chat\/?$/,'');
@@ -2237,7 +2559,6 @@ function openPlans(){
   $('pricing-modal').classList.add('on');
 }
 
-let _planCardsCache=null,_lastSyncedPlan=null;
 function _syncPlanCards(){
   if(_lastSyncedPlan===_currentPlan)return;
   _lastSyncedPlan=_currentPlan;
@@ -2813,7 +3134,36 @@ function setPersona(id){
 
 document.addEventListener('click',e=>{
   if(_personaPickerOpen&&!$('persona-wrap')?.contains(e.target))_closePersonaPicker();
+  if(_lenPickerOpen&&!$('len-wrap')?.contains(e.target))_closeLenPicker();
 });
+
+// ── Response length picker ──
+let _lenPickerOpen=false;
+function toggleLenPicker(){
+  _lenPickerOpen=!_lenPickerOpen;
+  $('len-dropdown')?.classList.toggle('on',_lenPickerOpen);
+  $('len-btn')?.classList.toggle('on',_lenPickerOpen);
+}
+function _closeLenPicker(){
+  _lenPickerOpen=false;
+  $('len-dropdown')?.classList.remove('on');
+  $('len-btn')?.classList.remove('on');
+}
+function setResponseLength(len){
+  settings.responseLength=len;
+  saveSettings();
+  _set('len-label',_LEN_LABELS[len]||'Normal');
+  document.querySelectorAll('.len-opt').forEach(el=>el.classList.toggle('active',el.dataset.len===len));
+  $('len-btn')?.classList.toggle('on',len!=='normal');
+  _closeLenPicker();
+  if(len!=='normal')toast('Length: '+(_LEN_LABELS[len]),'info',1500);
+}
+function _applyLenSetting(){
+  const len=settings.responseLength||'normal';
+  _set('len-label',_LEN_LABELS[len]||'Normal');
+  document.querySelectorAll('.len-opt').forEach(el=>el.classList.toggle('active',el.dataset.len===len));
+  if(len!=='normal')$('len-btn')?.classList.add('on');
+}
 
 // ══════════════════════════════════════
 // DAILY MESSAGE LIMIT (free tier)
@@ -3400,7 +3750,7 @@ async function _adminRenderSubs(){
       <div class="admin-kpi"><div class="admin-kpi-val admin-kv-free">${free.length}</div><div class="admin-kpi-lbl">Free</div></div>
       <div class="admin-kpi"><div class="admin-kpi-val admin-kv-plus">${plus.length}</div><div class="admin-kpi-lbl">Plus ($20/mo)</div></div>
       <div class="admin-kpi"><div class="admin-kpi-val admin-kv-pro">${pro.length}</div><div class="admin-kpi-lbl">Pro ($200/mo)</div></div>
-      <div class="admin-kpi"><div class="admin-kpi-val">${('$'+(plus.length*20+pro.length*200)).toLocaleString()}</div><div class="admin-kpi-lbl">Est. MRR</div></div>
+      <div class="admin-kpi"><div class="admin-kpi-val">$${(plus.length*20+pro.length*200).toLocaleString()}</div><div class="admin-kpi-lbl">Est. MRR</div></div>
     </div>
     ${pro.length?`<div class="admin-section-title" style="margin-top:20px">Pro Subscribers</div>${_adminUserTable(pro,'compact')}`:''}
     ${plus.length?`<div class="admin-section-title" style="margin-top:20px">Plus Subscribers</div>${_adminUserTable(plus,'compact')}`:''}
