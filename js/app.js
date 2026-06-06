@@ -199,6 +199,7 @@ function onLogin(u){
   loadProfile(u.uid);
   _loadApiKeys();
   _updateModelSelector();
+  _renderApiModelsCards();
   initPersona();
   renderDailyBar();
   _initFocusMode();
@@ -319,7 +320,7 @@ function openSettings(){
   const sp=$('system-prompt-input');
   if(sp)sp.value=systemPrompt;
   updateSysCount();
-  _renderApiKeysForm();
+  _renderApiModelsCards();
   _refreshSysPromptTemplates();
   $('settings-modal').classList.add('on');
 }
@@ -1893,7 +1894,11 @@ async function callAPI(text,isNew,_images){
       const kc=_apiKeys[_activeModelId];
       if(kc&&kc.key){
         _fetchUrl=_backendUrl()+'/proxy-chat';
-        _fetchBody={..._fetchBody,provider:_activeModelId,api_key:kc.key,model:kc.model||'',api_base_url:kc.baseUrl||''};
+        _fetchBody={..._fetchBody,
+          provider:_activeModelId,api_key:kc.key,model:kc.model||'',api_base_url:kc.baseUrl||'',
+          temperature:kc.temperature??0.7,
+          ...(kc.maxTokens?{max_tokens:kc.maxTokens}:{})
+        };
       }else{
         toast('No API key set for this model. Add it in Settings → Custom Models.','err',4000);
       }
@@ -3359,14 +3364,15 @@ function _updateModelSelector(){
   if(_activeModelId==='arnav'){
     nameEl.textContent=window.MODEL||'Arnav AI';
     if(subEl)subEl.textContent='Default';
-    if(dotEl){dotEl.style.background='var(--accent)';dotEl.style.boxShadow='0 0 6px var(--accent)88';}
+    if(dotEl){dotEl.style.background='var(--success)';dotEl.style.boxShadow='0 0 6px rgba(74,203,138,.5)';}
     return;
   }
   const prov=_API_PROVIDERS[_activeModelId];
   const kc=_apiKeys[_activeModelId];
-  const modelLabel=prov?.models.find(m=>m.id===kc?.model)?.label||kc?.model||prov?.name||_activeModelId;
+  const modelLabel=prov?.models.find(m=>m.id===kc?.model)?.label?.split('—')[0].trim()||kc?.model||prov?.name||_activeModelId;
   nameEl.textContent=modelLabel;
-  if(subEl)subEl.textContent=prov?.name||_activeModelId;
+  const tempStr=kc?.temperature!=null?` · ${parseFloat(kc.temperature).toFixed(2)}°`:'';
+  if(subEl)subEl.textContent=(prov?.name||_activeModelId)+tempStr;
   if(dotEl&&prov?.color){
     dotEl.style.background=prov.color;
     dotEl.style.boxShadow='0 0 5px '+prov.color+'99';
@@ -3384,8 +3390,9 @@ function toggleModelSelector(){
   Object.entries(_API_PROVIDERS).forEach(([pid,prov])=>{
     const kc=_apiKeys[pid];
     if(!kc||!kc.key)return;
-    const modelLabel=prov.models.find(m=>m.id===kc.model)?.label||kc.model||prov.name;
-    items.push({id:pid,name:modelLabel,sub:prov.name,active:_activeModelId===pid,color:prov.color});
+    const modelLabel=prov.models.find(m=>m.id===kc.model)?.label?.split('—')[0].trim()||kc.model||prov.name;
+    const tempStr=kc.temperature!=null?`${parseFloat(kc.temperature).toFixed(2)}°`:'';
+    items.push({id:pid,name:modelLabel,sub:prov.name,active:_activeModelId===pid,color:prov.color,temp:tempStr});
   });
 
   let html=items.map(item=>`
@@ -3393,14 +3400,29 @@ function toggleModelSelector(){
       <div class="model-dd-dot" style="background:${item.color};box-shadow:0 0 5px ${item.color}66"></div>
       <div class="model-dd-info">
         <div class="model-dd-name">${esc(item.name)}</div>
-        <div class="model-dd-sub">${esc(item.sub)}</div>
+        <div class="model-dd-sub">${esc(item.sub)}${item.temp?` · <span style="font-family:var(--mono)">${esc(item.temp)}</span>`:''}</div>
       </div>
-      ${item.active?'<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="13" height="13"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>':''}
+      <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
+        ${item.id!=='arnav'?`<button class="model-dd-cfg-btn" onclick="event.stopPropagation();$('model-dropdown').classList.remove('on');_modelDdOpen=false;document.removeEventListener('click',_closeModelDdOutside);openProviderConfig('${item.id}')" title="Configure">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="11" height="11"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>`:''}
+        ${item.active?'<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="13" height="13" style="color:var(--accent2)"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>':''}
+      </div>
     </div>`).join('');
 
   const hasCustom=Object.values(_apiKeys).some(k=>k&&k.key);
   if(!hasCustom){
-    html+='<div class="model-dd-hint">Add API keys in Settings to use Claude, GPT-4, Gemini &amp; more</div>';
+    html+=`<div class="model-dd-setup">
+      <div class="model-dd-setup-label">Add your own AI key</div>
+      <div class="model-dd-setup-btns">
+        ${['openai','anthropic','gemini','openai_compat'].map(pid=>{
+          const p=_API_PROVIDERS[pid];
+          return`<button class="model-dd-setup-btn" style="border-color:${p.color}22" onclick="$('model-dropdown').classList.remove('on');_modelDdOpen=false;document.removeEventListener('click',_closeModelDdOutside);openProviderConfig('${pid}')">
+            <span class="model-dd-setup-badge" style="background:${p.color}">${p.abbr}</span>${pid==='openai_compat'?'Custom':p.name.split(' ')[0]}
+          </button>`;
+        }).join('')}
+      </div>
+    </div>`;
   }else{
     html+='<div class="model-dd-footer" onclick="openSettings()">⚙ Manage API keys</div>';
   }
@@ -3408,11 +3430,13 @@ function toggleModelSelector(){
   dd.innerHTML=html;
   dd.classList.add('on');
   _modelDdOpen=true;
-  setTimeout(()=>document.addEventListener('click',_closeModelDdOutside,{once:true}),10);
+  setTimeout(()=>document.addEventListener('click',_closeModelDdOutside),10);
 }
 function _closeModelDdOutside(e){
   if($('model-selector')?.contains(e.target))return;
-  $('model-dropdown')?.classList.remove('on');_modelDdOpen=false;
+  $('model-dropdown')?.classList.remove('on');
+  _modelDdOpen=false;
+  document.removeEventListener('click',_closeModelDdOutside);
 }
 function setActiveModel(id){
   _activeModelId=id;
@@ -3557,6 +3581,224 @@ async function testApiKey(pid){
   }finally{
     if(testBtn){testBtn.disabled=false;testBtn.textContent='Test';}
   }
+}
+
+// ══════════════════════════════════════
+// PROVIDER CONFIG MODAL
+// ══════════════════════════════════════
+const _PROVIDER_KEY_URLS={
+  openai:'https://platform.openai.com/api-keys',
+  anthropic:'https://console.anthropic.com/account/keys',
+  gemini:'https://aistudio.google.com/app/apikey',
+  openai_compat:''
+};
+let _editingPid=null;
+
+function _renderApiModelsCards(){
+  const c=$('api-models-container');if(!c)return;
+  const order=['openai','anthropic','gemini','openai_compat'];
+  c.innerHTML=order.map(pid=>{
+    const prov=_API_PROVIDERS[pid];
+    const kc=_apiKeys[pid];
+    const hasKey=!!(kc&&kc.key);
+    const isActive=_activeModelId===pid&&hasKey;
+    const modelLabel=hasKey?(prov?.models?.find(m=>m.id===kc.model)?.label?.split('—')[0].trim()||kc.model||prov?.name||pid):'';
+    const tempLabel=hasKey&&kc.temperature!=null?`Temp ${parseFloat(kc.temperature).toFixed(2)}`:'';
+    const statusCls=!hasKey?'amc-unconfigured':kc.ok===true?'amc-connected':kc.ok===false?'amc-error':'amc-saved';
+    const statusTxt=!hasKey?'Not configured':kc.ok===true?'Connected':kc.ok===false?'Error':'Saved';
+    const detail=[modelLabel,tempLabel].filter(Boolean).join(' · ');
+    return`<div class="api-model-card${isActive?' amc-active':''}">
+      <div class="amc-badge" style="background:${prov?.color||'var(--accent)'}">${prov?.abbr||'?'}</div>
+      <div class="amc-info">
+        <div class="amc-name">${esc(prov?.name||pid)}</div>
+        <div class="amc-detail">${detail?esc(detail):'<span class="amc-uncfg-text">Not configured</span>'}</div>
+      </div>
+      <div class="amc-right">
+        <span class="amc-status ${statusCls}"><span class="amc-sdot"></span>${statusTxt}</span>
+        <div class="amc-btns">
+          ${isActive?'<span class="amc-active-tag">Active</span>':hasKey?`<button class="amc-use-btn" onclick="setActiveModel('${pid}');_renderApiModelsCards()">Use</button>`:''}
+          <button class="amc-cfg-btn" onclick="openProviderConfig('${pid}')">${hasKey?'Edit':'Set up'}</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function openProviderConfig(pid){
+  _editingPid=pid;
+  const prov=_API_PROVIDERS[pid];
+  const kc=_apiKeys[pid]||{};
+  // Header
+  const iconEl=$('pcfg-head-icon');
+  if(iconEl){iconEl.textContent=prov?.abbr||'⚙';iconEl.style.background=prov?.color||'var(--accent)';}
+  if($('pcfg-title'))$('pcfg-title').textContent='Configure '+(prov?.name||pid);
+  // URL field — compat only
+  const urlField=$('pcfg-url-field');
+  if(urlField)urlField.style.display=pid==='openai_compat'?'':'none';
+  const urlInp=$('pcfg-url');
+  if(urlInp)urlInp.value=kc.baseUrl||'';
+  // Key
+  const keyInp=$('pcfg-key');
+  if(keyInp){keyInp.value=kc.key||'';keyInp.type='password';}
+  // Status
+  const stEl=$('pcfg-status');
+  if(stEl){
+    if(kc.ok===true){stEl.textContent='✓ Connected — key is valid';stEl.className='pcfg-status apikey-ok';}
+    else if(kc.ok===false){stEl.textContent='✗ Connection failed — check your key';stEl.className='pcfg-status apikey-err';}
+    else{stEl.textContent='';stEl.className='pcfg-status';}
+  }
+  // Get key link
+  const getLink=$('pcfg-get-key-link');
+  if(getLink){const url=_PROVIDER_KEY_URLS[pid]||'';getLink.href=url||'#';getLink.style.display=url?'':'none';}
+  // Model: dropdown vs free-text
+  const modelSel=$('pcfg-model-select');
+  const modelInp=$('pcfg-model-input');
+  const isCompat=pid==='openai_compat';
+  if(isCompat){
+    if(modelSel)modelSel.style.display='none';
+    if(modelInp){modelInp.style.display='';modelInp.value=kc.model||'';}
+  }else{
+    if(modelInp)modelInp.style.display='none';
+    if(modelSel&&prov?.models?.length){
+      const cur=kc.model||prov.models[0].id;
+      modelSel.style.display='';
+      modelSel.innerHTML=prov.models.map(m=>`<option value="${m.id}"${m.id===cur?' selected':''}>${m.label}</option>`).join('');
+    }
+  }
+  // Temperature
+  const tempRange=$('pcfg-temp');
+  const tempValEl=$('pcfg-temp-val');
+  const t=kc.temperature!=null?kc.temperature:0.7;
+  if(tempRange){tempRange.value=t;_pcfgUpdateSlider(tempRange);}
+  if(tempValEl)tempValEl.textContent=parseFloat(t).toFixed(2);
+  // Max tokens
+  const mtInp=$('pcfg-max-tokens');
+  if(mtInp)mtInp.value=kc.maxTokens||'';
+  // Remove button visibility
+  const clearBtn=$('pcfg-clear-btn');
+  if(clearBtn)clearBtn.style.display=kc&&kc.key?'':'none';
+  // Open
+  $('provider-config-modal').classList.add('on');
+  setTimeout(()=>keyInp?.focus(),80);
+}
+
+// Close on Escape key inside pcfg modal
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'&&$('provider-config-modal')?.classList.contains('on')){
+    closeModalId('provider-config-modal');
+  }
+});
+
+function _pcfgUpdateSlider(el){
+  // Update the CSS fill gradient on the range input
+  const pct=((parseFloat(el.value)-parseFloat(el.min))/(parseFloat(el.max)-parseFloat(el.min)))*100;
+  el.style.setProperty('--fill',pct.toFixed(1)+'%');
+}
+
+function togglePcfgKeyVis(){
+  const inp=$('pcfg-key');if(!inp)return;
+  inp.type=inp.type==='password'?'text':'password';
+}
+
+function _apiKeyErrHint(msg){
+  if(!msg)return'Unknown error';
+  if(msg.includes('401')||/invalid.*key|key.*invalid|auth.*fail/i.test(msg))return'Invalid API key';
+  if(msg.includes('429'))return'Rate limit — wait a moment and retry';
+  if(msg.includes('403'))return'Access denied — check your account';
+  if(msg.includes('404'))return'Model not found — try a different model';
+  if(msg.includes('503')||msg.includes('unavailable'))return'Service unavailable';
+  return msg.slice(0,80);
+}
+
+async function testProviderConfig(){
+  const pid=_editingPid;if(!pid)return;
+  const key=($('pcfg-key')?.value||'').trim();
+  if(!key){toast('Enter an API key first','err');return;}
+  const isCompat=pid==='openai_compat';
+  const model=(isCompat?$('pcfg-model-input')?.value:$('pcfg-model-select')?.value)||_API_PROVIDERS[pid]?.models?.[0]?.id||'gpt-3.5-turbo';
+  const baseUrl=isCompat?($('pcfg-url')?.value||'').trim():'';
+  if(isCompat&&!baseUrl){toast('Enter the Base URL first','err');return;}
+  const stEl=$('pcfg-status');
+  const testBtn=$('pcfg-test-btn');
+  if(stEl){stEl.textContent='⋯ Testing connection…';stEl.className='pcfg-status apikey-testing';}
+  if(testBtn){testBtn.disabled=true;testBtn.textContent='Testing…';}
+  try{
+    const u=_fbUser||window._auth?.currentUser;
+    if(!u)throw new Error('Not signed in');
+    const tok=await u.getIdToken();
+    const res=await fetch(_backendUrl()+'/proxy-chat',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},
+      body:JSON.stringify({
+        provider:pid,api_key:key,model:(model||'').trim(),
+        messages:[{role:'user',content:'Reply with one word: OK'}],
+        api_base_url:baseUrl,web_search:false,code_mode:false,
+        temperature:0.1,max_tokens:64
+      })
+    });
+    if(!res.ok){
+      const e=await res.json().catch(()=>({}));
+      if(res.status===429){
+        if(stEl){stEl.textContent='⚠ Rate limited — key is valid';stEl.className='pcfg-status apikey-warn';}
+        toast((_API_PROVIDERS[pid]?.name||pid)+': Key valid but rate-limited','info',4000);
+        if(!_apiKeys[pid])_apiKeys[pid]={};
+        Object.assign(_apiKeys[pid],{key,model,ok:true});
+        _saveApiKeysToStorage();
+        const cb=$('pcfg-clear-btn');if(cb)cb.style.display='';
+        return;
+      }
+      throw new Error(e.detail||'HTTP '+res.status);
+    }
+    if(stEl){stEl.textContent='✓ Connected — key is valid!';stEl.className='pcfg-status apikey-ok';}
+    toast((_API_PROVIDERS[pid]?.name||pid)+' connected ✓','ok',3000);
+    if(!_apiKeys[pid])_apiKeys[pid]={};
+    Object.assign(_apiKeys[pid],{key,model,ok:true});
+    _saveApiKeysToStorage();
+    const cb=$('pcfg-clear-btn');if(cb)cb.style.display='';
+  }catch(err){
+    const hint=_apiKeyErrHint(err.message||'');
+    if(stEl){stEl.textContent='✗ '+hint;stEl.className='pcfg-status apikey-err';}
+    toast((_API_PROVIDERS[pid]?.name||pid)+' error: '+hint,'err',5000);
+    if(_apiKeys[pid])_apiKeys[pid].ok=false;
+    _saveApiKeysToStorage();
+  }finally{
+    if(testBtn){testBtn.disabled=false;testBtn.textContent='Test';}
+  }
+}
+
+function saveProviderConfig(){
+  const pid=_editingPid;if(!pid)return;
+  const isCompat=pid==='openai_compat';
+  const key=($('pcfg-key')?.value||'').trim();
+  if(!key){toast('API key is required','err');return;}
+  const baseUrl=isCompat?($('pcfg-url')?.value||'').trim():'';
+  if(isCompat&&!baseUrl){toast('Base URL is required for custom endpoints','err');return;}
+  const model=((isCompat?$('pcfg-model-input')?.value:$('pcfg-model-select')?.value)||'').trim()||_API_PROVIDERS[pid]?.models?.[0]?.id||'';
+  const temperature=Math.max(0,Math.min(2,parseFloat($('pcfg-temp')?.value)||0.7));
+  const mtRaw=parseInt($('pcfg-max-tokens')?.value)||0;
+  const prev=_apiKeys[pid]||{};
+  const ok=(prev.key===key)?prev.ok:undefined;
+  _apiKeys[pid]={key,model,temperature,...(mtRaw>0?{maxTokens:mtRaw}:{}),...(baseUrl?{baseUrl}:{}),...(ok!==undefined?{ok}:{})};
+  _saveApiKeysToStorage();
+  _activeModelId=pid;
+  localStorage.setItem('arnav-active-model',pid);
+  _updateModelSelector();
+  _renderApiModelsCards();
+  closeModalId('provider-config-modal');
+  toast((_API_PROVIDERS[pid]?.name||pid)+' saved & set as active model','ok',3000);
+}
+
+function clearProviderConfig(){
+  const pid=_editingPid;if(!pid)return;
+  const name=_API_PROVIDERS[pid]?.name||pid;
+  if(!confirm(`Remove ${name} configuration? Your API key will be deleted from this browser.`))return;
+  delete _apiKeys[pid];
+  _saveApiKeysToStorage();
+  if(_activeModelId===pid)setActiveModel('arnav');
+  _updateModelSelector();
+  _renderApiModelsCards();
+  closeModalId('provider-config-modal');
+  toast(name+' removed','info',2000);
 }
 
 // ══════════════════════════════════════
