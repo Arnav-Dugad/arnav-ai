@@ -692,7 +692,10 @@ function loadChat(id){
   closeConvSearch();
   // Clear any pending attachments/input from the previous chat
   _pendingAttachments=[];_renderAttachPreviews();
-  const _inp=$('cinput');if(_inp){_inp.value='';_inp.style.height='auto';}
+  const _inp=$('cinput');
+  if(_inp){_inp.value='';_inp.style.height='auto';}
+  const _cc=$('char-count');if(_cc)_cc.textContent='0 / 2000';
+  _updateSendBtn();
   currentChatId=id;msgs=[...s.msgs];chatTitle=s.title;
   $('tb-title').textContent=chatTitle;
   $('msgs-inner').innerHTML='';
@@ -938,9 +941,11 @@ function fmt(raw){
     return'\x00MB'+(mathExprs.length-1)+'\x00';
   });
 
-  // Inline math: $...$ (skip if looks like currency — must contain a math operator or letter)
+  // Inline math: $...$ — only treat as math if it contains LaTeX special chars
+  // (backslash, superscript, subscript, or grouping braces).
+  // This prevents false positives like "$5 and $10" or "$Hello$".
   t=t.replace(/\$([^\$\n]{1,250}?)\$/g,(m,expr)=>{
-    if(!/[a-zA-Z\\^_{}+\-=\/<>|]/.test(expr))return m;
+    if(!/[\\^_{}]/.test(expr))return m;
     const html=_renderMath(expr.trim(),false);
     mathExprs.push({display:false,html});
     return'\x00MI'+(mathExprs.length-1)+'\x00';
@@ -1271,9 +1276,10 @@ async function onFileSelected(input){
 }
 
 async function _processFile(file){
-  const MAX=10*1024*1024; // 10 MB
-  if(file.size>MAX){toast(`${file.name} is too large (max 10 MB)`,'err',3500);return;}
-  const isImg=file.type.startsWith('image/');
+  const MAX=20*1024*1024; // 20 MB
+  if(file.size>MAX){toast(`${file.name} is too large (max 20 MB)`,'err',3500);return;}
+  const _imgExts=/\.(jpg|jpeg|png|gif|webp|bmp|heic|heif|avif|tif|tiff|svg)$/i;
+  const isImg=file.type.startsWith('image/')||_imgExts.test(file.name);
   const textTypes=/^(text\/|application\/(json|javascript|xml|x-yaml))/;
   const textExts=/\.(txt|md|csv|py|js|ts|jsx|tsx|html|htm|css|json|yaml|yml|sh|bash|sql|xml|go|rs|java|c|cpp|h|rb|php|swift|kt|r|lua|pl|scala|dart|vue|svelte)$/i;
   const isText=textTypes.test(file.type)||textExts.test(file.name);
@@ -1296,7 +1302,11 @@ function _fileToText(f){return new Promise((res,rej)=>{const r=new FileReader();
 
 function _renderAttachPreviews(){
   const row=$('attach-previews');if(!row)return;
-  if(!_pendingAttachments.length){row.style.display='none';return;}
+  if(!_pendingAttachments.length){
+    row.style.display='none';
+    $('attach-btn')?.classList.remove('has-files');
+    return;
+  }
   row.style.display='flex';
   row.innerHTML='';
   _pendingAttachments.forEach((a,i)=>{
@@ -1389,8 +1399,42 @@ let _cameraStream=null;
 let _cameraFacingMode='environment';
 let _cameraSnapDataUrl=null;
 
+// Dedicated handler for mobile camera-input — bypasses MIME type detection
+// because many Android browsers return file.type='' for captured photos
+async function onCameraSelected(input){
+  const files=Array.from(input.files||[]);
+  if(!files.length)return;
+  const CAMERA_MAX=20*1024*1024; // 20 MB — phone cameras produce large files
+  let added=0;
+  for(const f of files){
+    if(f.size>CAMERA_MAX){
+      toast('Photo too large (max 20 MB). Try reducing camera resolution in settings.','err',4000);
+      continue;
+    }
+    // Force image treatment — camera always produces images regardless of MIME
+    const mimeType=(f.type&&f.type.startsWith('image/'))?f.type:'image/jpeg';
+    try{
+      const dataUrl=await _fileToBase64(f);
+      _pendingAttachments.push({
+        name:f.name||'photo.jpg',
+        type:'image',
+        mimeType,
+        base64:dataUrl.split(',')[1],
+        dataUrl,
+        size:f.size
+      });
+      $('attach-btn')?.classList.add('has-files');
+      added++;
+    }catch(e){toast('Could not read photo. Please try again.','err',3000);}
+  }
+  input.value=''; // reset so same photo can be retaken
+  _renderAttachPreviews();
+  _updateSendBtn();
+  if(added)toast('Photo attached — type a question or just send','info',2500);
+}
+
 function openCamera(){
-  // On mobile devices use native capture; on desktop use getUserMedia
+  // On mobile devices use native capture; on desktop use getUserMedia modal
   const isMobile=/iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
   if(isMobile||!navigator.mediaDevices?.getUserMedia){
     $('camera-input')?.click();
@@ -1520,23 +1564,22 @@ let _specActiveTab='Math';
 
 function toggleSpecChars(){
   _specOpen=!_specOpen;
-  if(_specOpen)_buildSpecPanel();
+  if(_specOpen){
+    _buildSpecPanel();
+    setTimeout(()=>document.addEventListener('click',_closeSpecOutside),10);
+  }else{
+    document.removeEventListener('click',_closeSpecOutside);
+  }
   $('spec-dropdown')?.classList.toggle('on',_specOpen);
   $('spec-btn')?.classList.toggle('on',_specOpen);
-  if(_specOpen){
-    setTimeout(()=>document.addEventListener('click',_specOutsideClick,{once:true}),10);
-  }
 }
 
-function _specOutsideClick(e){
-  if($('spec-wrap')?.contains(e.target)){
-    // re-attach listener if click was inside
-    setTimeout(()=>document.addEventListener('click',_specOutsideClick,{once:true}),10);
-    return;
-  }
+function _closeSpecOutside(e){
+  if($('spec-wrap')?.contains(e.target))return;
   _specOpen=false;
   $('spec-dropdown')?.classList.remove('on');
   $('spec-btn')?.classList.remove('on');
+  document.removeEventListener('click',_closeSpecOutside);
 }
 
 function _buildSpecPanel(){
@@ -1544,7 +1587,14 @@ function _buildSpecPanel(){
   const tabKeys=Object.keys(_SPEC_TABS);
   const tabs=tabKeys.map(k=>`<button class="spec-tab${k===_specActiveTab?' active':''}" onclick="specSetTab('${k}');event.stopPropagation()">${k}</button>`).join('');
   const chars=_SPEC_TABS[_specActiveTab]||[];
-  const grid=chars.map(row=>row.map(c=>`<button class="spec-char" onclick="insertSpecChar('${c.replace(/'/g,"\\'")}');event.stopPropagation()" title="${c}">${c}</button>`).join('')).join('');
+  // Use encodeURIComponent to safely pass any Unicode character through onclick
+  const grid=chars.map(row=>
+    row.map(c=>{
+      const safe=encodeURIComponent(c);
+      const safeTitle=c.replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+      return`<button class="spec-char" onclick="insertSpecChar(decodeURIComponent('${safe}'));event.stopPropagation()" title="${safeTitle}">${c}</button>`;
+    }).join('')
+  ).join('');
   dd.innerHTML=`<div class="spec-tabs">${tabs}</div><div class="spec-grid">${grid}</div>`;
 }
 
