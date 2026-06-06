@@ -9,6 +9,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css"/>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
 <link rel="stylesheet" href="css/styles.css"/>
 <script src="https://js.stripe.com/v3/"></script>
 </head>
@@ -122,6 +124,15 @@
     </button>
     <div class="sb-search-wrap">
       <input class="sb-search" id="sb-search" placeholder="Search conversations…" oninput="filterHistory(this.value)"/>
+      <button class="sb-bulk-btn" id="sb-bulk-btn" onclick="toggleBulkMode()" title="Select conversations">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+      </button>
+    </div>
+    <div id="bulk-action-bar" class="bulk-action-bar" style="display:none">
+      <span id="bulk-count-label" class="bulk-count">0 selected</span>
+      <button class="bulk-btn" onclick="bulkSelectAll()">All</button>
+      <button class="bulk-btn bulk-btn-danger" onclick="bulkDelete()">Delete</button>
+      <button class="bulk-btn" onclick="toggleBulkMode()">Cancel</button>
     </div>
     <div class="sb-hist" id="sb-hist"></div>
     <div class="sb-foot">
@@ -239,6 +250,8 @@
 
     <!-- Hidden file input for attachments -->
     <input type="file" id="file-input" multiple accept="image/*,.txt,.md,.csv,.py,.js,.ts,.jsx,.tsx,.html,.css,.json,.yaml,.yml,.sh,.sql,.xml,.go,.rs,.java,.c,.cpp,.h,.rb,.swift,.kt" style="display:none" onchange="onFileSelected(this)">
+    <!-- Camera capture input (mobile — triggers native camera) -->
+    <input type="file" id="camera-input" accept="image/*" capture="environment" style="display:none" onchange="onFileSelected(this)">
 
     <!-- Drag & drop overlay -->
     <div class="drag-overlay" id="drag-overlay">
@@ -317,6 +330,27 @@
             </button>
             <div class="persona-dropdown" id="persona-dropdown"></div>
           </div>
+          <div class="len-wrap" id="len-wrap">
+            <button class="itb-btn len-main-btn" id="len-btn" onclick="toggleLenPicker()" title="Response length">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h12M4 14h8M4 18h4"/></svg>
+              <span class="btn-label" id="len-label">Normal</span>
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="9" height="9" style="margin-left:1px;opacity:.6"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+            </button>
+            <div class="len-dropdown" id="len-dropdown">
+              <div class="len-opt" data-len="brief" onclick="setResponseLength('brief')"><span>Brief</span><span class="len-opt-hint">1–3 sentences</span></div>
+              <div class="len-opt active" data-len="normal" onclick="setResponseLength('normal')"><span>Normal</span><span class="len-opt-hint">Default length</span></div>
+              <div class="len-opt" data-len="detailed" onclick="setResponseLength('detailed')"><span>Detailed</span><span class="len-opt-hint">Examples &amp; structure</span></div>
+              <div class="len-opt" data-len="long" onclick="setResponseLength('long')"><span>Long</span><span class="len-opt-hint">Comprehensive</span></div>
+            </div>
+          </div>
+          <div class="spec-wrap" id="spec-wrap">
+            <button class="itb-btn spec-btn" id="spec-btn" onclick="toggleSpecChars()" title="Insert special characters">
+              <span style="font-size:13px;line-height:1">Ω</span>
+              <span class="btn-label">Symbols</span>
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="9" height="9" style="margin-left:1px;opacity:.6"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+            </button>
+            <div class="spec-dropdown" id="spec-dropdown"></div>
+          </div>
           <div class="itb-spacer"></div>
           <span class="char-count" id="char-count">0 / 2000</span>
         </div>
@@ -325,6 +359,9 @@
           <div class="input-row">
             <button class="attach-btn" id="attach-btn" onclick="openFileAttach()" title="Attach files or images (drag & drop, or paste an image)">
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
+            </button>
+            <button class="camera-btn" id="camera-btn" onclick="openCamera()" title="Take a photo with your camera">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><circle cx="12" cy="13" r="3" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
             </button>
             <textarea id="cinput" placeholder="Message Arnav AI…" rows="1" oninput="onInput(this)" onkeydown="onKey(event)"></textarea>
             <button class="mic-btn" id="mic-btn" onclick="toggleVoice()" title="Voice input">
@@ -344,6 +381,42 @@
           <span class="footer-copy">Arnav &copy; <span id="footer-year-desk"></span></span>
         </div>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- CAMERA MODAL -->
+<div class="camera-modal-bg" id="camera-modal" style="display:none">
+  <div class="camera-modal-inner">
+    <div class="camera-modal-head">
+      <span class="camera-modal-title">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><circle cx="12" cy="13" r="3"/></svg>
+        Camera
+      </span>
+      <div class="camera-modal-actions">
+        <button class="camera-flip-btn" id="camera-flip-btn" onclick="flipCamera()" title="Flip camera">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+        </button>
+        <button class="camera-close-btn" onclick="closeCamera()" title="Close">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="camera-preview-wrap">
+      <video id="camera-video" autoplay playsinline muted></video>
+      <canvas id="camera-canvas" style="display:none"></canvas>
+      <div class="camera-preview-overlay" id="camera-snap-preview" style="display:none">
+        <img id="camera-snap-img" alt="Captured photo"/>
+        <div class="camera-snap-btns">
+          <button class="camera-retake-btn" onclick="cameraRetake()">Retake</button>
+          <button class="camera-use-btn" onclick="cameraUsePhoto()">Use Photo</button>
+        </div>
+      </div>
+    </div>
+    <div class="camera-shutter-wrap">
+      <button class="camera-shutter-btn" id="camera-shutter-btn" onclick="cameraSnap()">
+        <div class="camera-shutter-ring"></div>
+      </button>
     </div>
   </div>
 </div>
@@ -421,6 +494,13 @@
           <div class="setting-info"><div class="setting-label">Custom instructions</div><div class="setting-desc">Guide how Arnav AI responds to you</div></div>
         </div>
         <textarea class="system-ta" id="system-prompt-input" maxlength="500" placeholder="e.g. Always be concise. Prefer code examples. Use formal language." oninput="updateSysCount()"></textarea>
+        <div class="prompt-tpl-bar">
+          <select id="prompt-tpl-select" onchange="loadSysPromptTemplate(this.value)">
+            <option value="">Load saved template…</option>
+          </select>
+          <button class="btn-xs" onclick="saveSysPromptTemplate()">Save as template</button>
+          <button class="btn-xs btn-xs-danger" id="del-tpl-btn" style="display:none" onclick="deleteSysPromptTemplate()">Delete</button>
+        </div>
         <div class="sys-row-footer">
           <span class="sys-count" id="sys-count">0 / 500</span>
           <button class="save-sys-btn" onclick="saveSystemPrompt()">Save</button>
