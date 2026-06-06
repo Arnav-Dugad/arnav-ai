@@ -512,67 +512,8 @@
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="15" height="15"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
         Custom AI Models
       </div>
-      <div class="api-keys-wrap">
-        <!-- OpenAI -->
-        <div class="api-key-row">
-          <div class="api-key-lbl"><span class="api-key-badge" style="background:#10a37f">GPT</span><span>OpenAI</span></div>
-          <div class="api-key-inp-wrap">
-            <input class="ainput api-key-inp" type="password" id="apikey-openai" placeholder="sk-…" autocomplete="off"/>
-            <button class="api-key-vis" id="apikey-vis-openai" onclick="toggleApiKeyVis('openai')" title="Show/hide">
-              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="13" height="13"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-            </button>
-          </div>
-          <select class="ainput api-model-sel" id="apimodel-openai"><option>GPT-4o</option></select>
-          <div class="api-key-actions">
-            <button class="api-test-btn" id="apikey-test-openai" onclick="testApiKey('openai')">Test</button>
-            <span class="apikey-status" id="apikey-status-openai"></span>
-          </div>
-        </div>
-        <!-- Anthropic -->
-        <div class="api-key-row">
-          <div class="api-key-lbl"><span class="api-key-badge" style="background:#d4855a">CL</span><span>Anthropic</span></div>
-          <div class="api-key-inp-wrap">
-            <input class="ainput api-key-inp" type="password" id="apikey-anthropic" placeholder="sk-ant-…" autocomplete="off"/>
-            <button class="api-key-vis" id="apikey-vis-anthropic" onclick="toggleApiKeyVis('anthropic')" title="Show/hide">
-              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="13" height="13"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-            </button>
-          </div>
-          <select class="ainput api-model-sel" id="apimodel-anthropic"><option>Claude Sonnet 4.6</option></select>
-          <div class="api-key-actions">
-            <button class="api-test-btn" id="apikey-test-anthropic" onclick="testApiKey('anthropic')">Test</button>
-            <span class="apikey-status" id="apikey-status-anthropic"></span>
-          </div>
-        </div>
-        <!-- Gemini -->
-        <div class="api-key-row">
-          <div class="api-key-lbl"><span class="api-key-badge" style="background:#4285f4">GM</span><span>Gemini</span></div>
-          <div class="api-key-inp-wrap">
-            <input class="ainput api-key-inp" type="password" id="apikey-gemini" placeholder="AIza…" autocomplete="off"/>
-            <button class="api-key-vis" id="apikey-vis-gemini" onclick="toggleApiKeyVis('gemini')" title="Show/hide">
-              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="13" height="13"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-            </button>
-          </div>
-          <select class="ainput api-model-sel" id="apimodel-gemini"><option>Gemini 3.5 Flash</option></select>
-          <div class="api-key-actions">
-            <button class="api-test-btn" id="apikey-test-gemini" onclick="testApiKey('gemini')">Test</button>
-            <span class="apikey-status" id="apikey-status-gemini"></span>
-          </div>
-        </div>
-        <!-- Custom OpenAI-compatible -->
-        <div class="api-key-row api-key-row-compat">
-          <div class="api-key-lbl"><span class="api-key-badge" style="background:var(--accent)">⚙</span><span>Custom</span></div>
-          <input class="ainput api-key-inp api-key-inp-url" type="text" id="apikey-compat-url" placeholder="https://api.openai.com/v1" autocomplete="off"/>
-          <input class="ainput api-key-inp" type="password" id="apikey-compat-key" placeholder="API Key" autocomplete="off"/>
-          <input class="ainput api-key-inp api-key-inp-model" type="text" id="apikey-compat-model" placeholder="model-name" autocomplete="off"/>
-        </div>
-        <div class="api-keys-footer">
-          <button class="save-sys-btn" onclick="saveApiKeys()">
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="12" height="12"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-            Save All Keys
-          </button>
-          <span class="api-keys-note">🔒 Stored in your browser only — sent to our proxy during inference, never logged or stored on our servers</span>
-        </div>
-      </div>
+      <div id="api-models-container" class="api-models-container"></div>
+      <div class="api-keys-note" style="margin-top:8px;">🔒 Keys stored in your browser only — sent to our proxy during inference, never logged or stored on our servers</div>
 
       <!-- Reset settings -->
       <div style="text-align:center;padding:10px 0 2px;">
@@ -993,6 +934,90 @@
       <div class="pricing-footer-note">
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="13" height="13"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
         Payments secured by Stripe. No credit card required for the free plan.
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- PROVIDER CONFIG MODAL -->
+<div class="modal-bg" id="provider-config-modal" onclick="if(event.target.id==='provider-config-modal')closeModalId('provider-config-modal')">
+  <div class="modal pcfg-modal">
+    <div class="modal-head">
+      <div class="pcfg-head-icon" id="pcfg-head-icon">⚙</div>
+      <span class="modal-title" id="pcfg-title">Configure Provider</span>
+      <button class="modal-close" onclick="closeModalId('provider-config-modal')"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+    </div>
+    <div class="modal-body pcfg-body">
+
+      <!-- Base URL — custom endpoint only -->
+      <div class="pcfg-field" id="pcfg-url-field">
+        <label class="pcfg-label">Base URL</label>
+        <input class="ainput" type="text" id="pcfg-url" placeholder="https://api.openai.com/v1" autocomplete="off"/>
+        <div class="pcfg-hint">The endpoint root for your provider (e.g. LM Studio, Ollama, Together AI)</div>
+      </div>
+
+      <!-- API Key -->
+      <div class="pcfg-field">
+        <div class="pcfg-key-header">
+          <label class="pcfg-label">API Key</label>
+          <a class="pcfg-get-key-link" id="pcfg-get-key-link" target="_blank" rel="noopener noreferrer" href="#">Get API key ↗</a>
+        </div>
+        <div class="pcfg-key-row">
+          <div class="api-key-inp-wrap" style="flex:1;min-width:0">
+            <input class="ainput api-key-inp" type="password" id="pcfg-key" placeholder="Paste your API key…" autocomplete="off" onkeydown="if(event.key==='Enter')testProviderConfig()"/>
+            <button class="api-key-vis" onclick="togglePcfgKeyVis()" title="Show/hide" type="button">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="13" height="13"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+            </button>
+          </div>
+          <button class="api-test-btn" id="pcfg-test-btn" onclick="testProviderConfig()" type="button">Test</button>
+        </div>
+        <div class="pcfg-status" id="pcfg-status"></div>
+      </div>
+
+      <!-- Model -->
+      <div class="pcfg-field" id="pcfg-model-field">
+        <label class="pcfg-label">Model</label>
+        <select class="ainput pcfg-model-sel" id="pcfg-model-select"></select>
+        <input class="ainput" type="text" id="pcfg-model-input" placeholder="e.g. gpt-4o, llama-3.3-70b, mistral-7b" autocomplete="off" style="display:none"/>
+      </div>
+
+      <!-- Temperature -->
+      <div class="pcfg-field">
+        <div class="pcfg-label-row">
+          <label class="pcfg-label">Temperature</label>
+          <span class="pcfg-param-val" id="pcfg-temp-val">0.70</span>
+        </div>
+        <input type="range" class="pcfg-slider" id="pcfg-temp" min="0" max="2" step="0.05" value="0.7"
+               oninput="document.getElementById('pcfg-temp-val').textContent=parseFloat(this.value).toFixed(2);_pcfgUpdateSlider(this)"/>
+        <div class="pcfg-slider-labels">
+          <span>0 — Precise</span><span>1 — Balanced</span><span>2 — Creative</span>
+        </div>
+      </div>
+
+      <!-- Max Tokens -->
+      <div class="pcfg-field">
+        <div class="pcfg-label-row">
+          <label class="pcfg-label">Max Tokens</label>
+          <span class="pcfg-note">optional</span>
+        </div>
+        <input class="ainput" type="number" id="pcfg-max-tokens" placeholder="Default (4096)" min="128" max="128000" step="128"/>
+        <div class="pcfg-hint">Controls the maximum length of each response. Leave blank to use default.</div>
+      </div>
+
+      <!-- Footer actions -->
+      <div class="pcfg-footer">
+        <button class="pcfg-clear-btn" id="pcfg-clear-btn" onclick="clearProviderConfig()" type="button">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="12" height="12"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+          Remove
+        </button>
+        <div style="display:flex;gap:8px">
+          <button class="pcfg-cancel-btn" onclick="closeModalId('provider-config-modal')" type="button">Cancel</button>
+          <button class="pcfg-save-btn" onclick="saveProviderConfig()" type="button">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="12" height="12"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+            Save &amp; Use
+          </button>
+        </div>
       </div>
 
     </div>
